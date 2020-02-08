@@ -7,10 +7,13 @@ use Getopt::Long qw(:config no_ignore_case);
 use FindBin qw/$Bin/;
 use threads;
 use threads::shared;
+use Thread::Queue;
+use JSON;
 
 sub main {
     unshift @INC, "$Bin/../comm";
     require "common.pm";
+    require "rpc.pm";
 
     my @opt_list = ("d=s");
     my %opts;
@@ -30,45 +33,51 @@ sub main {
     my $SOCK_PATH = "/home/wuge/.mytmp/unix-domain-socket-test.sock";
     my $MAX_LISTEN_NUM = 5;
 
-    my $server = IO::Socket::UNIX->new(
+    my $client = IO::Socket::UNIX->new(
         Type => SOCK_STREAM(),
-        Local => $SOCK_PATH,
-        Listen => $MAX_LISTEN_NUM,
+        Peer => $SOCK_PATH,
     );
 
-    die "can't create socket: $!" unless $server;
+    # my $server = IO::Socket::UNIX->new(
+    #     Type => SOCK_STREAM(),
+    #     Local => $SOCK_PATH,
+    #     Listen => $MAX_LISTEN_NUM,
+    # );
 
-    # my $sel = IO::Select->new();
-    # $sel->add($server);
+    # die "can't create socket: $!" unless $server;
+
+    # # my $sel = IO::Select->new();
+    # # $sel->add($server);
     
-    my @connections = ();
-    my $thread_accept = threads->create( sub {
-        my $sock = shift;
-        my $max_listen_num = shift;
+    # my @connections = ();
+    # # share(@connections);
+    # my $thread_accept = threads->create( sub {
+    #     my $sock = shift;
+    #     my $max_listen_num = shift;
 
-        my @conns = ();
-        for (1 .. $max_listen_num) {
-            my $conn = $sock->accept;
-            $conn->autoflush(1);
-            push @connections, $conn;
-            print "connect failed!\n" unless $conn;
+    #     my @conns = ();
+    #     while (1) {
+    #         my $conn = $sock->accept;
+    #         $conn->autoflush(1);
+    #         push @connections, $conn;
+    #         print "connect failed!\n" unless $conn;
 
-            while (1) {
-                my $raw = "";
-                $conn->recv($raw, 32, 0);
-                last unless $raw;
-                my $line = Common::deserialization($raw);
-                print "test: $line\n";
-                my $response = "Response from server.\n";
-                my $packed_resp = Common::serialization($response);
-                $conn->send($packed_resp, 0);
-            }
-        }
+    #         # while (my $raw = <$conn>) {
+    #         while (1) {
+    #             my ($tag, $len, $val) = Common::get_msg($conn);
+    #             last unless $val;
+    #             my $return_val = FC_RPC::rpc_call($val);
+    #             my $response = encode_json($return_val);
+    #             my $packed_resp = Common::serialization($response);
+    #             # print $conn $packed_resp;
+    #             $conn->send($packed_resp, 0);
+    #         }
+    #     }
 
-        return @connections;
-    }, $server, 1);
+    #     return @connections;
+    # }, $server, 1);
 
-    @connections = $thread_accept->join();
+    # @connections = $thread_accept->join();
 
     print "end of server\n";
 
