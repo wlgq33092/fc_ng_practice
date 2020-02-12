@@ -1,0 +1,6 @@
+{
+    "rpc_server_sock_path": {
+        "perl": "/home/wuge/.mytmp/unix-domain-socket-test-perl.sock",
+        "python": "/home/wuge/.mytmp/unix-domain-socket-test-python.sock"
+    }
+}

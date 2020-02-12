@@ -10,6 +10,7 @@ use Thread::Queue;
 use JSON;
 use fc_msg;
 
+require "common.pm";
 
 package FC_RPC;
 
@@ -38,7 +39,7 @@ sub rpc_call_python {
 
     print STDERR "rpc call python: $jobname, $jobtype, $method.\n";
 
-    my $client = FlowContext::get_client("python");
+    my $client = get_client("python");
 
     return $client->rpc_call($call_data);
 }
@@ -60,10 +61,7 @@ sub recv_fc_message {
 
     $conn->recv($tag, 4, 0);
     $conn->recv($len, 4, 0);
-    # eval {
-    #     $conn->recv($tag, 4, 0);
-    #     $conn->recv($len, 4, 0);
-    # };
+    
     return undef, undef, undef unless $tag and $len;
     
     $tag = unpack("N", $tag);
@@ -78,6 +76,17 @@ sub recv_fc_message {
     return ($tag, $len, $val);
 }
 
+sub get_client {
+    my $server = shift;
+    $server = lc($server);
+
+    my $sock_path = FlowContext::get_server_sock_path($server);
+    return undef unless defined $sock_path;
+
+    my $client = FC_RPC_CLIENT->new($sock_path);
+
+    return $client;
+}
 
 # flow controller unix domain socket client in perl
 package FC_RPC_CLIENT;
@@ -140,7 +149,6 @@ sub close {
     my $conn = $self->{sock};
 
     $conn->close();
-    # $conn->shutdown(2);
 }
 
 sub connect {

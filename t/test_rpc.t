@@ -7,6 +7,7 @@ use Getopt::Long qw(:config no_ignore_case);
 use Test::More;
 
 unshift @INC, "$Bin";
+unshift @INC, "$Bin/../comm";
 require "rpc_obj.pm";
 
 sub main {

@@ -12,12 +12,13 @@ sub new {
     my $class = shift;
     my $msg_config_file = shift;
 
-    open MSG_CONFIG, "<$msg_config_file" or die "Open msg config file failed!\n";
-    my $config = "";
-    $config .= $_ while <MSG_CONFIG>;
-    close MSG_CONFIG;
+    # open MSG_CONFIG, "<$msg_config_file" or die "Open msg config file failed!\n";
+    # my $config = "";
+    # $config .= $_ while <MSG_CONFIG>;
+    # close MSG_CONFIG;
     
-    my $msg_config = JSON::decode_json($config);
+    # my $msg_config = JSON::decode_json($config);
+    my $msg_config = FlowContext::load_json_file($msg_config_file);
 
     my $obj = {
         config => $msg_config,
@@ -102,3 +103,5 @@ sub serialization {
     
     return $packed;
 }
+
+1;

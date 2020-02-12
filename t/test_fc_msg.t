@@ -7,6 +7,11 @@ use Getopt::Long qw(:config no_ignore_case);
 use Test::More;
 
 unshift @INC, "$Bin";
+unshift @INC, "$Bin/../comm";
+
+require "common.pm";
+FlowContext::init_context("$Bin/../");
+
 require "rpc_obj.pm";
 require "fc_msg.pm";
 
@@ -52,7 +57,7 @@ sub main {
     my $ret = GetOptions(\%opts, @opt_list);
     $SIG{__WARN__} = 'DEFAULT';
 
-    my $msg_config_file = "$Bin/flow_controller_msg.json";
+    my $msg_config_file = "$Bin/../fc_rpc/fc_msg/flow_controller_msg.json";
     my $msg_config = FC_MSG_CONFIG->new($msg_config_file)->{config};
 
     my $msg_ids_conf = $msg_config->{FC_MSG_IDS};

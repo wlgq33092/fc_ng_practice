@@ -2,8 +2,6 @@ use strict;
 use warnings;
 use JSON;
 
-require "rpc.pm";
-
 package Common;
 
 sub serialization {
@@ -24,24 +22,6 @@ sub deserialization {
     return $line;
 }
 
-sub get_msg {
-    my $conn = shift;
-    my ($tag, $len, $val);
-    $conn->recv($tag, 4, 0);
-    $conn->recv($len, 4, 0);
-    return undef, undef, undef unless $tag and $len;
-    $tag = unpack("N", $tag);
-    $len = unpack("N", $len);
-    print "msg tag: $tag, msg len: $len\n";
-    $conn->recv($val, $len, 0);
-    return undef, undef, undef unless $val;
-    print "msg val: $val\n";
-    $val = unpack("A*", $val);
-    $val = JSON::decode_json($val);
-
-    return ($tag, $len, $val);
-}
-
 package FlowContext;
 
 our $MSG_TYPE_REQ = 0;
@@ -53,7 +33,45 @@ my $lang_server_sock_path = {
     python => "/home/wuge/.mytmp/unix-domain-socket-test-python.sock",
 };
 
-my $clients = {};
+# my $basedir;
+my $is_init = undef;
+my $fc_config;
+
+sub init_context {
+    my $basedir = shift;
+    my $fc_config_json = shift;
+
+    $basedir = "../" unless defined $basedir;
+    $fc_config_json = "$basedir/comm/flow_context_config.json" unless defined $fc_config_json;
+
+    unshift @INC, "$basedir/fake_jobs/perl_fake_jobs";
+    unshift @INC, "$basedir/fc_rpc/perl_rpc";
+    unshift @INC, "$basedir/log_service";
+
+    $fc_config = load_json_file($fc_config_json);
+    if (exists $fc_config->{rpc_server_sock_path}) {
+        foreach my $lang (keys %{$fc_config->{rpc_server_sock_path}}) {
+            $lang_server_sock_path->{$lang} = $fc_config->{rpc_server_sock_path}->{$lang}
+        }
+    }
+
+    $is_init = 1;
+}
+
+sub is_initialized {
+    return $is_init;
+}
+
+sub load_json_file {
+    my $json_file = shift;
+
+    open JF, "<$json_file" or die "Open json file $json_file failed!\n";
+    my $json_str = "";
+    $json_str .= $_ while <JF>;
+    close JF;
+    
+    return JSON::decode_json($json_str);
+}
 
 sub get_server_sock_path {
     my $server_name = shift;
@@ -61,21 +79,5 @@ sub get_server_sock_path {
     return $lang_server_sock_path->{$server_name} if exists $lang_server_sock_path->{$server_name};
     return undef;
 }
-
-sub get_client {
-    my $server = shift;
-    $server = lc($server);
-
-    return undef unless exists $lang_server_sock_path->{$server};
-    # return $clients->{$server} if exists $clients->{$server};
-
-    my $client = FC_RPC_CLIENT->new($lang_server_sock_path->{$server});
-    $clients->{$server} = $client;
-
-    # $client->connect();
-
-    return $client;
-}
-
 
 1;

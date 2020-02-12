@@ -3,15 +3,10 @@ use warnings;
 use Socket;
 use IO::Socket::UNIX;
 # use XML::LibXML;
-# use Getopt::Long qw(:config no_ignore_case);
+use Getopt::Long qw(:config no_ignore_case);
 use FindBin qw/$Bin/;
 # use threads;
 # use threads::shared;
-
-unshift @INC, "$Bin/../comm";
-unshift @INC, "$Bin";
-require "common.pm";
-require "joba.pm";
 
 our $jobs = {};
 
@@ -64,8 +59,32 @@ sub handle_and_gen_resp {
 }
 
 sub main {
-    unshift @INC, "$Bin/../comm";
+    my @opt_list = ("root=s");
+    my %opts;
+
+    $SIG{__WARN__} = sub {
+        my $wng = shift;
+        my $msg = $wng;
+        $msg =~ s/Unknown option/Unknown command line option/g;
+        chomp $msg;
+        print "$msg, please check command line argument.\n";
+        exit 1;
+    };
+
+    my $ret = GetOptions(\%opts, @opt_list);
+    $SIG{__WARN__} = 'DEFAULT';
+
+    my $rootdir;
+    if ($opts{root}) {
+        $rootdir = $opts{root};
+    } else {
+        $rootdir = "$Bin/../../";
+    }
+
+    unshift @INC, "$rootdir/../comm";
     require "common.pm";
+
+    FlowContext::init_context($rootdir);
 
     $jobs = &init_jobs;
     my $server = &create_server;
