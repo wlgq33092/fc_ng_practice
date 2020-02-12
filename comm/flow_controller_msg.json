@@ -1,0 +1,55 @@
+{
+    "FC_MSG_IDS": {
+        "MSG_TYPE_REQ": "0",
+        "MSG_TYPE_RESP": "1",
+        "MSG_TYPE_RPC": "2",
+        "MSG_TYPE_CONFIG": "3"
+    },
+
+    "MSG_TYPE_REQ": {
+        "job_type": {
+            "type": "string",
+            "optional": "no"
+        },
+        "job_name": {
+            "type": "string",
+            "optional": "no"
+        },
+        "method": {
+            "type": "string",
+            "optional": "no"
+        },
+        "args": {
+            "type": "list",
+            "optional": "yes"
+        }
+    },
+
+    "MSG_TYPE_RESP": {
+        "return_val": {
+            "type": "string",
+            "optional": "no"
+        }
+    },
+
+    "MSG_TYPE_RPC": {
+        "module": {
+            "type": "string",
+            "optional": "no"
+        },
+        "method": {
+            "type": "string",
+            "optional": "no"
+        },
+        "args": {
+            "type": "list",
+            "optional": "yes"
+        }
+    },
+
+    "MSG_TYPE_CONFIG": {
+
+    }
+}
+
+

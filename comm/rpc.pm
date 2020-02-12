@@ -8,54 +8,7 @@ use threads;
 use threads::shared;
 use Thread::Queue;
 use JSON;
-
-# flow controller rpc message
-# message:
-# TLV
-# tag(4 bytes, int) + len(4 bytes, int) + value(len bytes, string)
-package FCMessage;
-
-sub new {
-    my $class = shift;
-    my $tag = shift;
-    my $value = shift;
-
-    my $msg = {
-        tag        => $tag,
-        value_hash => $value,
-        msg_len    => 0,
-    };
-
-    $msg->{value} = JSON::encode_json($value);
-
-    bless $msg, __PACKAGE__;
-
-    return $msg;
-}
-
-sub set_value {
-    my $self = shift;
-    $self->{value_hash} = shift;
-}
-
-sub add_item {
-    my $self = shift;
-    my $key = shift;
-    my $value = shift;
-
-    $self->{value_hash}->{$key} = $value;
-}
-
-sub serialization {
-    my $self = shift;
-    $self->{value} = JSON::encode_json($self->{value_hash});
-    $self->{msg_len} = length($self->{value});
-
-    print STDERR "msg serialization: tag: $self->{tag}, len: $self->{msg_len}, value: $self->{value}.\n";
-    my $packed = pack("NNA*", $self->{tag}, $self->{msg_len}, $self->{value});
-    
-    return $packed;
-}
+use fc_msg;
 
 
 package FC_RPC;
@@ -156,8 +109,8 @@ sub send_fc_message {
 
     my $sock = $self->{sock};
     # $self->connect($self->{sock_path});
-    my $peer = $sock->peername;
-    print STDERR "send, peer: $peer\n";
+    # my $peer = $sock->peername;
+    # print STDERR "send, peer: $peer\n";
     FC_RPC::send_fc_message($sock, $msg, $self->{sock_path});
 }
 
