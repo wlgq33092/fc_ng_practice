@@ -36,6 +36,7 @@ my $lang_server_sock_path = {
 # my $basedir;
 my $is_init = undef;
 my $fc_config;
+my $fc_msgs_config_json;
 
 sub init_context {
     my $basedir = shift;
@@ -55,11 +56,17 @@ sub init_context {
         }
     }
 
+    $fc_msgs_config_json = "$basedir/fc_rpc/fc_msg/flow_controller_msg.json";
+
     $is_init = 1;
 }
 
 sub is_initialized {
     return $is_init;
+}
+
+sub get_fc_msgs_config_file {
+    return $fc_msgs_config_json;
 }
 
 sub load_json_file {
@@ -78,6 +85,67 @@ sub get_server_sock_path {
 
     return $lang_server_sock_path->{$server_name} if exists $lang_server_sock_path->{$server_name};
     return undef;
+}
+
+
+package RegisterCenter;
+
+my $job_packages_routing_table = {};
+
+my $api_routing_table = {};
+
+sub register_job_package {
+    my $job_package = shift;
+    my $lang = shift;
+
+    if (exists $job_packages_routing_table->{$job_package}) {
+        my $cur_lang = $job_packages_routing_table->{$job_package};
+        if ($cur_lang ne $lang) {
+            # one job type has 2 implementations, it's illegal
+            # TODO, print error msg and exit
+        }
+    } else {
+        $job_packages_routing_table->{$job_package} = lc($lang);
+    }
+}
+
+sub find_job_package {
+    my $job_package = shift;
+
+    return undef unless defined $job_package;
+
+    if (exists $job_packages_routing_table->{$job_package}) {
+        return $job_packages_routing_table->{$job_package};
+    } else {
+        return undef;
+    }
+}
+
+sub register_api_module {
+    my $module = shift;
+    my $lang = shift;
+
+    if (exists $api_routing_table->{$module}) {
+        my $cur_lang = $api_routing_table->{$module};
+        if ($cur_lang ne $lang) {
+            # one module has 2 implementations, it's illegal
+            # TODO, print error msg and exit
+        } else {
+            $api_routing_table->{$module} = lc($lang);
+        }
+    }
+}
+
+sub find_module {
+    my $module = shift;
+
+    return undef unless defined $module;
+
+    if (exists $api_routing_table->{$module}) {
+        return $api_routing_table->{$module};
+    } else {
+        return undef;
+    }
 }
 
 1;

@@ -18,6 +18,7 @@ sub new {
     # close MSG_CONFIG;
     
     # my $msg_config = JSON::decode_json($config);
+    $msg_config_file = FlowContext::get_fc_msgs_config_file() unless defined $msg_config_file;
     my $msg_config = FlowContext::load_json_file($msg_config_file);
 
     my $obj = {
@@ -29,6 +30,22 @@ sub new {
     $fc_msgs = $obj;
 
     return $obj;
+}
+
+sub get_fc_msgs_config {
+    my $self = shift;
+
+    if (defined $fc_msgs) {
+        return $fc_msgs;
+    } else {
+        my $msg_config_file = FlowContext::get_fc_msgs_config_file();
+        my $msg_config = FlowContext::load_json_file($msg_config_file);
+        my $obj = {
+            config => $msg_config,
+        };
+        bless $obj, __PACKAGE__;
+        return $obj;
+    }
 }
 
 sub AUTOLOAD {
@@ -78,6 +95,18 @@ sub new {
 sub check_valid {
     my $self = shift;
     my $val = $self->{value_hash};
+
+    # my $fc_msgs_config = FC_MSG_CONFIG::get_fc_msgs_config();
+
+    # my $fc_msg_name2ids = $fc_msgs_config->{FC_MSG_IDS};
+    # my $fc_msg_ids2name = reverse $fc_msg_name2ids;
+    # my $msg_name = $fc_msg_ids2name->{$self->{tag}};
+    # my $msg_config = $fc_msgs_config->{$msg_name};
+
+    # check if msg config valid here
+    # foreach my $key (keys %{$val}) {
+
+    # }
 }
 
 sub set_value {

@@ -11,6 +11,7 @@ use FindBin qw/$Bin/;
 our $jobs = {};
 
 sub init_jobs {
+    require "joba.pm";
     my $job1 = joba->new("job1", "joba");
     my $job2 = joba->new("job2", "joba");
     $jobs = {
@@ -81,10 +82,11 @@ sub main {
         $rootdir = "$Bin/../../";
     }
 
-    unshift @INC, "$rootdir/../comm";
+    unshift @INC, "$rootdir/comm";
     require "common.pm";
 
     FlowContext::init_context($rootdir);
+    require "rpc.pm";
 
     $jobs = &init_jobs;
     my $server = &create_server;

@@ -8,7 +8,7 @@ use Test::More;
 
 unshift @INC, "$Bin";
 unshift @INC, "$Bin/../comm";
-require "rpc_obj.pm";
+require "common.pm";
 
 sub main {
     my @opt_list = ("l=s");
@@ -26,37 +26,41 @@ sub main {
     my $ret = GetOptions(\%opts, @opt_list);
     $SIG{__WARN__} = 'DEFAULT';
 
-    my $test_flow_job = FlowJob->new();
+    FlowContext::init_context("$Bin/../");
+
+    require "rpc_obj.pm";
+
+    RegisterCenter::register_job_package("joba", "perl");
+    RegisterCenter::register_job_package("pyjoba", "python");
+
+    my $test_flow_job = FlowJob->new("job1", "joba");
+    my $test_flow_job2 = FlowJob->new("job3", "pyjoba");
     my $arg1 = "";
     my $arg2 = "";
 
-    if (lc($opts{l}) eq "perl") {
-        my $ret_test_rpc = $test_flow_job->test_rpc($arg1, $arg2);
-        is("test rpc ret", $ret_test_rpc, "test rpc ret") or done_testing, return;
-        # is("test rpc arg1 ret", $arg1, "test rpc arg1 ret") or done_testing;
-        # is("test rpc arg2 ret", $arg2, "test rpc arg2 ret") or done_testing;
+    my $ret_test_rpc = $test_flow_job->test_rpc($arg1, $arg2);
+    is("test rpc ret", $ret_test_rpc, "test rpc ret") or done_testing, return;
+    # is("test rpc arg1 ret", $arg1, "test rpc arg1 ret") or done_testing;
+    # is("test rpc arg2 ret", $arg2, "test rpc arg2 ret") or done_testing;
 
-        my $ret_test_run = $test_flow_job->test_run($arg1, $arg2);
-        is("test run ret", $ret_test_run, "test run ret") or done_testing, return;
-        # is("test run arg1 ret", $arg1, "test run arg1 ret") or done_testing;
-        # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
+    my $ret_test_run = $test_flow_job->test_run($arg1, $arg2);
+    is("test run ret", $ret_test_run, "test run ret") or done_testing, return;
+    # is("test run arg1 ret", $arg1, "test run arg1 ret") or done_testing;
+    # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
 
-        my $ret_test_call_python = $test_flow_job->test_call_python($arg1, $arg2, "");
-        is("test call from perl", $ret_test_call_python, "test call python") or done_testing, return;
-    } elsif (lc($opts{l}) eq "python") {
-        my $ret_test_rpc = $test_flow_job->test_python_rpc($arg1, $arg2);
-        is("test python rpc ret", $ret_test_rpc, "test rpc ret") or done_testing, return;
-        # is("test rpc arg1 ret", $arg1, "test rpc arg1 ret") or done_testing;
-        # is("test rpc arg2 ret", $arg2, "test rpc arg2 ret") or done_testing;
-
-        my $ret_test_run = $test_flow_job->test_python_run($arg1, $arg2);
-        is("test python run ret", $ret_test_run, "test run ret") or done_testing, return;
-        # is("test run arg1 ret", $arg1, "test run arg1 ret") or done_testing;
-        # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
-    }
+    my $ret_test_call_python = $test_flow_job->test_call_python($arg1, $arg2, "");
+    is("test call from perl", $ret_test_call_python, "test call python") or done_testing, return;
     
-    # sleep 10;
+    $ret_test_rpc = $test_flow_job2->test_python_rpc($arg1, $arg2);
+    is("test python rpc ret", $ret_test_rpc, "test rpc ret") or done_testing, return;
+    # is("test rpc arg1 ret", $arg1, "test rpc arg1 ret") or done_testing;
+    # is("test rpc arg2 ret", $arg2, "test rpc arg2 ret") or done_testing;
 
+    $ret_test_run = $test_flow_job2->test_python_run($arg1, $arg2);
+    is("test python run ret", $ret_test_run, "test run ret") or done_testing, return;
+    # is("test run arg1 ret", $arg1, "test run arg1 ret") or done_testing;
+    # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
+    
     &done_testing;
 }
 

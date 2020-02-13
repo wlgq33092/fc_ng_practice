@@ -29,7 +29,7 @@ sub test_rpc {
     my $arg1 = shift;
     my $arg2 = shift;
 
-    return $self->{instance}->test_rpc("perl", $arg1, $arg2);
+    return $self->{instance}->test_rpc($arg1, $arg2);
 }
 
 sub test_run {
@@ -37,7 +37,7 @@ sub test_run {
     my $arg1 = shift;
     my $arg2 = shift;
 
-    return $self->{instance}->test_run("perl", $arg1, $arg2);
+    return $self->{instance}->test_run($arg1, $arg2);
 }
 
 sub test_call_python {
@@ -45,7 +45,7 @@ sub test_call_python {
     my $arg1 = shift;
     my $arg2 = shift;
 
-    return $self->{instance}->test_call_python("perl", $arg1, $arg2, "");
+    return $self->{instance}->test_call_python($arg1, $arg2, "");
 }
 
 sub test_python_rpc {
@@ -53,7 +53,7 @@ sub test_python_rpc {
     my $arg1 = shift;
     my $arg2 = shift;
 
-    return $self->{instance}->test_rpc("python", $arg1, $arg2);
+    return $self->{instance}->test_rpc($arg1, $arg2);
 }
 
 sub test_python_run {
@@ -61,7 +61,7 @@ sub test_python_run {
     my $arg1 = shift;
     my $arg2 = shift;
 
-    return $self->{instance}->test_run("python", $arg1, $arg2);
+    return $self->{instance}->test_run($arg1, $arg2);
 }
 
 sub AUTOLOAD {
@@ -97,24 +97,24 @@ sub new {
 
 sub AUTOLOAD {
     my $self = shift;
-    my $lang = shift;
-    $lang = lc($lang);
     my @args = @_;
+
+    my $lang = RegisterCenter::find_job_package($self->{type});
 
     no strict 'vars';
     (my $method = $AUTOLOAD) =~ s{.*::}{};
 
     my $data = {
-        job_name => "job1",
-        job_type => "joba",
+        job_name => $self->{name},
+        job_type => $self->{type},
         method   => $method,
         args     => \@args,
     };
 
-    $data->{job_type} = "pyjoba" if lc($lang) eq "python";
-    $data->{job_name} = "job3" if lc($lang) eq "python";
+    # $data->{job_type} = "pyjoba" if lc($lang) eq "python";
+    # $data->{job_name} = "job3" if lc($lang) eq "python";
 
-    my $client = FlowContext::get_client($lang);
+    my $client = FC_RPC::get_client($lang);
     return $client->rpc_call($data);
 }
 

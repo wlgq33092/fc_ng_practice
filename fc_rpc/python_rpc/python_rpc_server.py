@@ -8,38 +8,11 @@ import importlib
 from py_msg import FCMessage
 from py_rpc import PyLangServer, PyLangClient
 import pyserver_context as context
+
+# import_path = os.path.abspath(__file__)
+# fake_jobs_path = import_path + "/../../fake_jobs/python_fake_jobs"
+
 from pyjoba import pyjoba
-
-'''
-PY_FC_RPC = 0
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-sock_path = "/home/wuge/.mytmp/unix-domain-socket-test-python.sock"
-
-sock.connect(sock_path)
-
-send_data_dic = {
-    '_package':'FC_RPC',
-    '_method':'rpc_print',
-    '_args':'raw content'
-}
-send_msg = FCMessage(PY_FC_RPC, send_data_dic)
-send_data_struct = send_msg.serialization()
-sock.sendall(send_data_struct)
-
-raw_tag = sock.recv(4)
-raw_len = sock.recv(4)
-msg_tag, = struct.unpack('>i', raw_tag)
-msg_len, = struct.unpack('>i', raw_len)
-print "raw msg tag: {0}, raw msg len: {1}\n".format(raw_tag, raw_len)
-print "msg tag: {0}, msg len: {1}\n".format(msg_tag, msg_len)
-raw_payload = sock.recv(msg_len)
-payload, = struct.unpack('>%ds' % msg_len, raw_payload)
-res = json.loads(payload)
-print "payload:\n%s" % payload
-print "res:\n" + str(res)
-'''
 
 jobs = {}
 
@@ -88,6 +61,8 @@ def init_jobs():
 if __name__ == "__main__":
     import_path = os.path.abspath(__file__)
     sys.path.append(import_path)
+    sys.path.append(context.job_packages_folder)
+    importlib.import_module("pyjoba")
 
     init_jobs()
 

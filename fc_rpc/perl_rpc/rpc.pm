@@ -51,7 +51,7 @@ sub send_fc_message {
 
     my $send_data = $msg->serialization();
     # print &::Dumper($sock);
-    $sock->send($send_data, 0, $peer);
+    $sock->send($send_data, 0);
 }
 
 sub recv_fc_message {
