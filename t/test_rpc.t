@@ -33,6 +33,13 @@ sub main {
     RegisterCenter::register_job_package("joba", "perl");
     RegisterCenter::register_job_package("pyjoba", "python");
 
+    my $rpc_server_cmdlist = {
+        perl   => "$Bin/../fc_rpc/perl_rpc/perl_rpc_server.pl",
+        python => "$Bin/../fc_rpc/python_rpc/python_rpc_server.py",
+    };
+    my $rpc_server_mgr = FlowRPCServerManager->new($rpc_server_cmdlist, undef);
+    $rpc_server_mgr->launch_rpc_servers;
+
     my $test_flow_job = FlowJob->new("job1", "joba");
     my $test_flow_job2 = FlowJob->new("job3", "pyjoba");
     my $arg1 = "";
@@ -62,6 +69,8 @@ sub main {
     # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
     
     &done_testing;
+
+    $rpc_server_mgr->kill_rpc_servers;
 }
 
 &main;

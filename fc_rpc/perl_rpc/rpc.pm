@@ -130,18 +130,61 @@ sub recv_response {
     return FC_RPC::recv_fc_message($conn);
 }
 
+sub _rpc {
+    my $self = shift;
+    my $tag = shift;
+    my $call_data = shift;
+
+    my $call_msg = FCMessage->new($tag, $call_data);
+    $self->send_fc_message($call_msg);
+    my ($ret_tag, $ret_len, $ret_val) = $self->recv_response;
+
+    return ($ret_tag, $ret_len, $ret_val)
+}
+
 sub rpc_call {
     my $self = shift;
     my $call_data = shift;
 
-    # $self->connect($self->{sock_path});
-    my $call_msg = FCMessage->new($FlowContext::MSG_TYPE_RPC, $call_data);
-    $self->send_fc_message($call_msg);
-    my ($tag, $len, $val) = $self->recv_response;
+    my ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_RPC, $call_data);
 
     $self->close();
 
     return $val->{return_val};
+}
+
+sub rpc_get_attr {
+    my $self = shift;
+    my $name = shift;
+    my $attr = shift;
+
+    my $data = {
+        job_name => $name,
+        attr     => $attr
+    };
+
+    my ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_GET_REMOTE_ATTR, $data);
+
+    $self->close();
+
+    return $val->{attr};
+}
+
+sub rpc_set_attr {
+    my $self = shift;
+    my $name = shift;
+    my $attr = shift;
+    my $val = shift;
+
+    my $data = {
+        job_name => $name,
+        attr     => $attr,
+        value    => $val,
+    };
+
+    $self->_rpc($FlowContext::FC_MSG_SET_REMOTE_ATTR, $data);
+
+    $self->close();
 }
 
 sub close {

@@ -1,12 +1,15 @@
 {
     "FC_MSG_IDS": {
-        "MSG_TYPE_REQ": "0",
-        "MSG_TYPE_RESP": "1",
-        "MSG_TYPE_RPC": "2",
-        "MSG_TYPE_CONFIG": "3"
+        "FC_MSG_REQ": "0",
+        "FC_MSG_RESP": "1",
+        "FC_MSG_RPC": "2",
+        "FC_MSG_CONFIG": "3",
+        "FC_MSG_GET_REMOTE_ATTR": "4",
+        "FC_MSG_REMOTE_ATTR_RET": "5",
+        "FC_MSG_SET_REMOTE_ATTR": "6"
     },
 
-    "MSG_TYPE_REQ": {
+    "FC_MSG_REQ": {
         "job_type": {
             "type": "string",
             "optional": "no"
@@ -25,14 +28,14 @@
         }
     },
 
-    "MSG_TYPE_RESP": {
+    "FC_MSG_RESP": {
         "return_val": {
             "type": "string",
             "optional": "no"
         }
     },
 
-    "MSG_TYPE_RPC": {
+    "FC_MSG_RPC": {
         "module": {
             "type": "string",
             "optional": "no"
@@ -47,8 +50,45 @@
         }
     },
 
-    "MSG_TYPE_CONFIG": {
+    "FC_MSG_CONFIG": {
 
+    },
+
+    "FC_MSG_GET_REMOTE_ATTR": {
+        "job_name": {
+            "type": "string",
+            "optional": "no"
+        },
+        "attr": {
+            "type": "string",
+            "optional": "no"
+        }
+    },
+
+    "FC_MSG_REMOTE_ATTR_RET": {
+        "job_name": {
+            "type": "string",
+            "optional": "no"
+        },
+        "attr": {
+            "type": "string",
+            "optional": "no"
+        }
+    },
+
+    "FC_MSG_SET_REMOTE_ATTR": {
+        "job_name": {
+            "type": "string",
+            "optional": "no"
+        },
+        "attr": {
+            "type": "string",
+            "optional": "no"
+        },
+        "value": {
+            "type": "string",
+            "optional": "no"
+        }
     }
 }
 

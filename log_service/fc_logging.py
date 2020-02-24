@@ -28,3 +28,5 @@ class FCLogger(object):
     def set_debug(self):
         # set logging level to DEBUG
         self.logger.setLevel(10)
+
+# sys.module["FCLogger"] = FCLogger(20)

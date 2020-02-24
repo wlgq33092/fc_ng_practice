@@ -6,7 +6,7 @@ import struct
 import json
 import importlib
 from py_msg import FCMessage
-import pyserver_context as context
+# import pyserver_context as context
 
 class PyLangServer(object):
     def __init__(self, sock_path, max_listen):

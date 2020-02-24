@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use JSON;
+use POSIX;
 
 package Common;
 
@@ -24,9 +25,9 @@ sub deserialization {
 
 package FlowContext;
 
-our $MSG_TYPE_REQ = 0;
-our $MSG_TYPE_RESP = 1;
-our $MSG_TYPE_RPC = 2;
+our $FC_MSG_REQ = 0;
+our $FC_MSG_RESP = 1;
+our $FC_MSG_RPC = 2;
 
 my $lang_server_sock_path = {
     perl   => "/home/wuge/.mytmp/unix-domain-socket-test-perl.sock",
@@ -146,6 +147,154 @@ sub find_module {
     } else {
         return undef;
     }
+}
+
+package FlowRPCServerManager;
+
+# cmdlist is a hash ref
+# { perl => $cmd1, python => $cmd2 }
+sub new {
+    my $class = shift;
+    my $cmdlist = shift;
+    my $debug = shift; # which rpc server to debug, currently perl or python
+
+    $debug = undef unless exists $cmdlist->{$debug};
+
+    print STDERR "Debug rpc server: $debug.\n" if defined $debug;
+
+    my $mgr = {
+        cmdlist     => $cmdlist,
+        debug       => $debug,
+        rpc_servers => {}, # lang => pid
+        pids        => [],
+        debug_pid   => undef,
+    };
+
+    bless $mgr, __PACKAGE__;
+
+    return $mgr;
+}
+
+sub launch_rpc_server {
+    my $self = shift;
+    my $cmd = shift;
+    my $start_debug = shift;
+
+    my $pid = fork();
+    if ($pid > 0) {
+        push @{$self->{pids}}, $pid;
+        return $pid;
+    } elsif (0 == $pid) {
+        print STDERR "Start rpc server, command: $cmd.\n";
+        if (defined $start_debug) {
+            if (POSIX::setsid() > 0) {
+                my $child_pid = POSIX::getpid();
+                print STDERR "Debugging process $child_pid.\n";
+                POSIX::tcsetpgrp(0, $child_pid);
+            } else {
+                print STDERR "Launch debug mode failed, cmd: $cmd.\n";
+            }
+        }
+        exec $cmd;
+    } else {
+        die "launch rpc server error, command: $cmd.\n";
+    }
+}
+
+sub launch_rpc_servers {
+    my $self = shift;
+    my $start_debug = shift;
+    my $cmdlist = $self->{cmdlist};
+
+    foreach my $lang (keys %{$cmdlist}) {
+        next if lc($self->{debug}) eq lc($lang);
+        my $cmd = $cmdlist->{$lang};
+        $cmd = "perl " . $cmd if lc($lang) eq "perl";
+        $cmd = "python " . $cmd if lc($lang) eq "python";
+        my $pid = $self->launch_rpc_server($cmd);
+        $self->{rpc_servers}->{$lang} = $pid; 
+    }
+
+    if ($self->{debug}) {
+        my $pid = $self->debug_rpc_server;
+        $self->{rpc_servers}->{$self->{debug}} = $pid;
+    }
+}
+
+sub debug_rpc_server {
+    my $self = shift;
+    my $debug = $self->{debug};
+    my $cmd = $self->{cmdlist}->{$debug};
+
+    $cmd = "perl -d " . $cmd if lc($debug) eq "perl";
+    $cmd = "python -m pdb " . $cmd if lc($debug) eq "python";
+
+    $self->{debug_pid} = $self->launch_rpc_server($cmd, 1);
+}
+
+sub wait_debug_proc {
+    my $self = shift;
+    my $debug_pid = $self->{debug_pid};
+
+    my $ret = waitpid($debug_pid, 0);
+    if ($ret == $debug_pid) {
+        print STDERR "Wait debug proc $debug_pid success!\n";
+    } else {
+        print STDERR "Wait debug proc $debug_pid failed!\n";
+    }
+}
+
+sub monitor_rpc_servers {
+    my $self = shift;
+
+    # TODO
+    # block waiting all rpc servers
+}
+
+# return how many servers didn't exit
+sub check_rpc_servers {
+    my $self = shift;
+    my $debug_pid = $self->{debug_pid};
+
+    # wait rpc servers nohang
+    my $left = 0; # check how many servers remain
+    my @pids = @{$self->{pids}};
+    my @left = ();
+    foreach my $pid (@pids) {
+        if (defined $debug_pid) {
+            next if $debug_pid == $pid;
+        }
+        my $ret = waitpid($pid, POSIX::WNOHANG);
+        if ($pid == $ret) {
+            print STDERR "Wait rpc server $pid exit successfully.\n";
+        } else {
+            $left += 1;
+            push @left, $pid;
+        }
+    }
+
+    $self->{pids} = \@left;
+
+    return $left;
+}
+
+sub kill_rpc_servers {
+    my $self = shift;
+    my $debug_pid = $self->{debug_pid};
+
+    $self->wait_debug_proc if defined $debug_pid;
+
+    # kill all rpc servers with sigterm(15)
+    my @pids = @{$self->{pids}};
+    foreach my $pid (@pids) {
+        print STDERR "kill pid $pid.\n";
+        kill 'TERM', $pid unless $debug_pid == $pid;
+    }
+
+    my $left = 0;
+    do {
+        $left = $self->check_rpc_servers;
+    } while ($left > 0);
 }
 
 1;

@@ -7,6 +7,12 @@ use Getopt::Long qw(:config no_ignore_case);
 use FindBin qw/$Bin/;
 # use threads;
 # use threads::shared;
+use lib "$Bin";
+use lib "$Bin/../../comm";
+# print STDERR "bin is $Bin\n";
+# unshift @INC, "$rootdir/comm";
+require "common.pm";
+
 
 our $jobs = {};
 
@@ -44,7 +50,7 @@ sub handle_rpc_msg {
         return_val => $ret,
     };
 
-    my $resp_msg = FCMessage->new($FlowContext::MSG_TYPE_RESP, $response);
+    my $resp_msg = FCMessage->new($FlowContext::FC_MSG_RESP, $response);
     return $resp_msg;
 }
 
@@ -52,7 +58,7 @@ sub handle_and_gen_resp {
     my $tag = shift;
     my $val = shift;
 
-    if ($tag == $FlowContext::MSG_TYPE_RPC) {
+    if ($tag == $FlowContext::FC_MSG_RPC) {
         handle_rpc_msg($val);
     } else {
         return undef;
@@ -81,9 +87,6 @@ sub main {
     } else {
         $rootdir = "$Bin/../../";
     }
-
-    unshift @INC, "$rootdir/comm";
-    require "common.pm";
 
     FlowContext::init_context($rootdir);
     require "rpc.pm";

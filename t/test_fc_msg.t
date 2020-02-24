@@ -61,23 +61,23 @@ sub main {
     my $msg_config = FC_MSG_CONFIG->new($msg_config_file)->{config};
 
     my $msg_ids_conf = $msg_config->{FC_MSG_IDS};
-    is("0", $msg_ids_conf->{MSG_TYPE_REQ}, "test msg id req") or done_testing, return;
-    is("1", $msg_ids_conf->{MSG_TYPE_RESP}, "test msg id resp") or done_testing, return;
-    is("2", $msg_ids_conf->{MSG_TYPE_RPC}, "test msg id rpc") or done_testing, return;
-    is("3", $msg_ids_conf->{MSG_TYPE_CONFIG}, "test msg id config") or done_testing, return;
+    is("0", $msg_ids_conf->{FC_MSG_REQ}, "test msg id req") or done_testing, return;
+    is("1", $msg_ids_conf->{FC_MSG_RESP}, "test msg id resp") or done_testing, return;
+    is("2", $msg_ids_conf->{FC_MSG_RPC}, "test msg id rpc") or done_testing, return;
+    is("3", $msg_ids_conf->{FC_MSG_CONFIG}, "test msg id config") or done_testing, return;
 
-    my $msg_type_req = $msg_config->{MSG_TYPE_REQ};
+    my $msg_type_req = $msg_config->{FC_MSG_REQ};
     test_tags_valid($msg_type_req, "msg req", qw/job_type job_name method args/);
     test_tag($msg_type_req->{job_type}, "req job type", "string", "no");
     test_tag($msg_type_req->{job_name}, "req job name", "string", "no");
     test_tag($msg_type_req->{method}, "req method", "string", "no");
     test_tag($msg_type_req->{args}, "req args", "list", "yes");
 
-    my $msg_type_resp = $msg_config->{MSG_TYPE_RESP};
+    my $msg_type_resp = $msg_config->{FC_MSG_RESP};
     test_tags_valid($msg_type_resp, "msg resp", qw/return_val/);
     test_tag($msg_type_resp->{return_val}, "resp return val", "string", "no");
 
-    my $msg_type_rpc = $msg_config->{MSG_TYPE_RPC};
+    my $msg_type_rpc = $msg_config->{FC_MSG_RPC};
     test_tags_valid($msg_type_rpc, "msg rpc", qw/module method args/);
     test_tag($msg_type_rpc->{module}, "rpc module", "string", "no");
     test_tag($msg_type_rpc->{method}, "rpc method", "string", "no");
