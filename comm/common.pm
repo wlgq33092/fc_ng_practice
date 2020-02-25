@@ -38,6 +38,7 @@ my $lang_server_sock_path = {
 my $is_init = undef;
 my $fc_config;
 my $fc_msgs_config_json;
+my $rpc_server_mgr;
 
 sub init_context {
     my $basedir = shift;
@@ -60,6 +61,14 @@ sub init_context {
     $fc_msgs_config_json = "$basedir/fc_rpc/fc_msg/flow_controller_msg.json";
 
     $is_init = 1;
+}
+
+sub set_rpc_server_manager {
+    $rpc_server_mgr = shift
+}
+
+sub get_rpc_server_manager {
+    return $rpc_server_mgr;
 }
 
 sub is_initialized {
@@ -88,6 +97,15 @@ sub get_server_sock_path {
     return undef;
 }
 
+sub cleanup_flow_context {
+    if (defined $rpc_server_mgr) {
+        $rpc_server_mgr->kill_rpc_servers;
+    }
+}
+
+sub flow_exit {
+    exit 0;
+}
 
 package RegisterCenter;
 
@@ -172,7 +190,27 @@ sub new {
 
     bless $mgr, __PACKAGE__;
 
+    FlowContext::set_rpc_server_manager($mgr);
+
     return $mgr;
+}
+
+sub waiting_rpc_server_ready {
+    my $self = shift;
+    my $lang = shift;
+    my $pid = shift;
+    my $is_debugging = shift;
+
+    my $sock_path = FlowContext::get_server_sock_path($lang);
+
+    do {
+        my $ret = waitpid($pid, POSIX::WNOHANG);
+        if (0 == $ret) {
+            return 1 if -e $sock_path;
+        } else {
+            return 0;
+        }
+    } while (1);
 }
 
 sub launch_rpc_server {
@@ -208,10 +246,15 @@ sub launch_rpc_servers {
 
     foreach my $lang (keys %{$cmdlist}) {
         next if lc($self->{debug}) eq lc($lang);
+        $self->clean_sock_file($lang);
         my $cmd = $cmdlist->{$lang};
         $cmd = "perl " . $cmd if lc($lang) eq "perl";
         $cmd = "python " . $cmd if lc($lang) eq "python";
         my $pid = $self->launch_rpc_server($cmd);
+        unless ($self->waiting_rpc_server_ready($lang, $pid)) {
+            $self->kill_rpc_servers;
+            die "Start rpc server $lang error.\n";
+        }
         $self->{rpc_servers}->{$lang} = $pid; 
     }
 
@@ -221,15 +264,34 @@ sub launch_rpc_servers {
     }
 }
 
+sub clean_sock_file {
+    my $self = shift;
+    my $lang = shift;
+    my $sock_path = FlowContext::get_server_sock_path($lang);
+    unlink $sock_path;
+}
+
 sub debug_rpc_server {
     my $self = shift;
     my $debug = $self->{debug};
     my $cmd = $self->{cmdlist}->{$debug};
 
-    $cmd = "perl -d " . $cmd if lc($debug) eq "perl";
-    $cmd = "python -m pdb " . $cmd if lc($debug) eq "python";
+    if (lc($debug) eq "perl") {
+        $cmd = "perl -d " . $cmd;
+    } elsif (lc($debug) eq "python") {
+        $cmd = "python -m pdb " . $cmd;
+    } else {
+        print STDERR "Unknown debug mode $debug.\n";
+        exit 0;
+    }
 
-    $self->{debug_pid} = $self->launch_rpc_server($cmd, 1);
+    $self->clean_sock_file($debug);
+
+    my $pid = $self->{debug_pid} = $self->launch_rpc_server($cmd, 1);
+    unless ($self->waiting_rpc_server_ready($debug, $pid)) {
+        $self->kill_rpc_servers;
+        die "Start rpc server $debug error.\n";
+    }
 }
 
 sub wait_debug_proc {
@@ -282,13 +344,11 @@ sub kill_rpc_servers {
     my $self = shift;
     my $debug_pid = $self->{debug_pid};
 
-    $self->wait_debug_proc if defined $debug_pid;
-
     # kill all rpc servers with sigterm(15)
     my @pids = @{$self->{pids}};
     foreach my $pid (@pids) {
         print STDERR "kill pid $pid.\n";
-        kill 'TERM', $pid unless $debug_pid == $pid;
+        kill 'TERM', $pid;
     }
 
     my $left = 0;

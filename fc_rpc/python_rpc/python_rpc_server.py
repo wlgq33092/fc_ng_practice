@@ -6,11 +6,11 @@ import struct
 import json
 import importlib
 
-from py_msg import FCMessage
-from py_rpc import PyLangServer, PyLangClient
 import pyserver_context
 import context
-import log_agent
+from py_msg import FCMessage
+from py_rpc import PyLangServer, PyLangClient
+import log_agent as logger
 
 # import_path = os.path.abspath(__file__)
 # fake_jobs_path = import_path + "/../../fake_jobs/python_fake_jobs"
@@ -30,6 +30,9 @@ def call_job_method(job, method, *args):
         return ret
     else:
         print "no method!"
+        
+def get_job_attr(job, attr):
+    pass
 
 def handle_rpc_message(req):
     global jobs
@@ -53,8 +56,13 @@ def handle_get_attr_message(req):
     global jobs
     job_name = req["job_name"]
     attr = req["attr"]
-    print ""
-
+    msg = "get job {0} attr {1}".format(job_name, attr)
+    logger.log_debug(msg)
+    job_instance = jobs[job_name]
+    attr_value = get_job_attr(job_name, attr)
+    attr_ret_msg_val = { "job_name": job_name, "attr": attr_value }
+    attr_ret_msg = FCMessage(context.FC_MSG_REMOTE_ATTR_RET, attr_ret_msg_val)
+    return attr_ret_msg
 
 def handle_fc_message(msg):
     tag = msg.get_tag()
@@ -75,7 +83,8 @@ if __name__ == "__main__":
     # sys.path.append(import_path)
     # sys.path.append(context.job_packages_folder)
     # sys.path.append(context.log_service_folder)
-    print sys.path
+    logger.log_debug(sys.path)
+    logger.log_error(sys.path)
     importlib.import_module("pyjoba")
     importlib.import_module("fc_logging")
 

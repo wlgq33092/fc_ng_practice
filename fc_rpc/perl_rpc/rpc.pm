@@ -59,8 +59,14 @@ sub recv_fc_message {
 
     my ($tag, $len, $val);
 
-    $conn->recv($tag, 4, 0);
-    $conn->recv($len, 4, 0);
+    eval {
+        $conn->recv($tag, 4, 0);
+        $conn->recv($len, 4, 0);
+    };
+    if ($@) {
+        print STDERR "receive message error!";
+        FlowContext::cleanup_flow_context();
+    }
     
     return undef, undef, undef unless $tag and $len;
     
@@ -83,7 +89,15 @@ sub get_client {
     my $sock_path = FlowContext::get_server_sock_path($server);
     return undef unless defined $sock_path;
 
-    my $client = FC_RPC_CLIENT->new($sock_path);
+    my $client;
+    eval {
+        $client = FC_RPC_CLIENT->new($sock_path);
+    };
+    if ($@) {
+        print STDERR "get client error. error is: $@\n";
+        FlowContext::cleanup_flow_context;
+        FlowContext::flow_exit();
+    }
 
     return $client;
 }
@@ -99,6 +113,8 @@ sub new {
         Type => ::SOCK_STREAM(),
         Peer => $sock_path,
     );
+
+    FlowContext::cleanup_flow_context unless defined $sock;
 
     $sock->autoflush(1);
 
@@ -146,7 +162,14 @@ sub rpc_call {
     my $self = shift;
     my $call_data = shift;
 
-    my ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_RPC, $call_data);
+    my ($tag, $len, $val);
+    eval {
+        ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_RPC, $call_data);
+    };
+    if ($@) {
+        print STDERR "rpc_call error, error: $@.\n";
+        FlowContext::cleanup_flow_context
+    }
 
     $self->close();
 

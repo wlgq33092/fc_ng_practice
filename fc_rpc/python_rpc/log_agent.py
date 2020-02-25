@@ -1,21 +1,23 @@
 import sys
 import os
-# import log_service
+import fc_logging
+import FCLogger as logger
 
 class LogAgent(object):
-    def __init__(self):
-        pass
+    def __init__(self, logger):
+        self.logger = logger
     
     def log_debug(self, msg):
-        pass
+        self.logger.log_debug(msg)
     
     def log_info(self, msg):
-        pass
+        self.logger.log_info(msg)
     
     def log_warning(self, msg):
-        pass
+        self.logger.log_warning(msg)
     
     def log_error(self, msg):
-        pass
+        self.logger.log_error(msg)
+        # TODO, update job_message.txt
     
-sys.modules["log_agent"] = LogAgent()
+sys.modules["log_agent"] = LogAgent(logger)

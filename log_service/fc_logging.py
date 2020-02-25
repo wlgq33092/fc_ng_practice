@@ -2,6 +2,8 @@ import logging
 import os
 import sys
 import time
+import pyserver_context
+import context
 
 # default logging level: info
 # logging level: CRITICAL 50 ERROR 40 WARNING 30 INFO 20 DEBUG 10 NOTSET 0
@@ -15,7 +17,19 @@ class FCLogger(object):
             level = logging.INFO, format = '%(asctime)s - %(levelname)s: %(message)s', 
             datefmt = '%Y-%m-%d %H:%M:%S', filename = logfile, filemode = 'w')
 
-    def log_print(self, msg):
+    def log_print(self, msg, level):
+        if 10 == level:
+            self.logger.debug(msg)
+        elif 20 == level:
+            self.logger.info(msg)
+        elif 30 == level:
+            self.logger.warning(msg)
+        elif level >= 40:
+            self.logger.error(msg)
+        else:
+            self.logger.debug(msg)
+            
+    def log_info(self, msg):
         self.logger.info(msg)
 
     def log_error(self, msg):
@@ -29,4 +43,6 @@ class FCLogger(object):
         # set logging level to DEBUG
         self.logger.setLevel(10)
 
-# sys.module["FCLogger"] = FCLogger(20)
+log_file = context.get_base_dir() + '/tmplog.log'
+sys.modules["FCLogger"] = FCLogger(20, log_file)
+print "add fc logging module success!\n"
