@@ -10,8 +10,9 @@ sub new {
     my $class = shift;
     my $name = shift;
     my $type = shift;
+    my $config = shift;
 
-    my $instance = FlowRPCJob->new($name, $type);
+    my $instance = FlowRPCJob->new($name, $type, $config);
 
     my $obj = {
         name     => $name,
@@ -84,11 +85,17 @@ sub new {
     my $self = shift;
     my $name = shift;
     my $type = shift;
+    my $config = shift;
 
     my $rpc_job = {
-        name => $name,
-        type => $type,
+        name   => $name,
+        type   => $type,
+        config => $config,
     };
+
+    my $lang = RegisterCenter::find_job_package($type);
+    my $client = FC_RPC::get_client($lang);
+    $client->rpc_create_job($rpc_job);
 
     bless $rpc_job, __PACKAGE__;
 

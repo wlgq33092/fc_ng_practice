@@ -6,7 +6,9 @@
         "FC_MSG_CONFIG": "3",
         "FC_MSG_GET_REMOTE_ATTR": "4",
         "FC_MSG_REMOTE_ATTR_RET": "5",
-        "FC_MSG_SET_REMOTE_ATTR": "6"
+        "FC_MSG_SET_REMOTE_ATTR": "6",
+        "FC_MSG_LOG_PRINT": "7",
+        "FC_MSG_JOB_CREATE": "8"
     },
 
     "FC_MSG_REQ": {
@@ -51,7 +53,10 @@
     },
 
     "FC_MSG_CONFIG": {
-
+        "logginglevel": {
+            "type": "int",
+            "optional": "yes"
+        }
     },
 
     "FC_MSG_GET_REMOTE_ATTR": {
@@ -88,6 +93,36 @@
         "value": {
             "type": "string",
             "optional": "no"
+        }
+    },
+
+    "FC_MSG_LOG_PRINT": {
+        "logginglevel": {
+            "type": "int",
+            "optional": "yes"
+        },
+        "message": {
+            "type": "string",
+            "optional": "no"
+        }
+    },
+
+    "FC_MSG_JOB_CREATE": {
+        "name": {
+            "type": "string",
+            "optional": "no"
+        },
+        "type": {
+            "type": "string",
+            "optional": "no"
+        },
+        "config": {
+            "type": "hash",
+            "optional": "no"
+        },
+        "logginglevel": {
+            "type": "int",
+            "optional": "yes"
         }
     }
 }

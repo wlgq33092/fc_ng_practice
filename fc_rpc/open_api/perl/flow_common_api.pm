@@ -3,6 +3,8 @@ use warnings;
 use Tie::Hash;
 
 require "rpc.pm";
+require "common.pm";
+require "log_agent.pm";
 
 package JobAgent;
 
@@ -37,17 +39,27 @@ use base qw/Tie::StdHash/;
 
 sub TIEHASH {
     my $class = shift;
-    my $name = shift;
+    my $name = shift;  # used for prefix
+    # my $type = "joba";
     my $type = shift;
-    my $lang = shift;
-
+    my $lang = RegisterCenter::find_job_package($type);
+    print STDERR "name: $name, type: $type, lang: $lang\n";
+    
     my $obj = {
+        name => $name,
         lang => $lang
     };
 
-    bless $obj, $class;
+    bless $obj, __PACKAGE__;
 
     return $obj;
+}
+
+sub log_print {
+    my $self = shift;
+    my $msg = shift;
+
+    print STDERR "test tie hash: $msg";
 }
 
 sub FETCH {
@@ -57,10 +69,11 @@ sub FETCH {
     my $name = $self->{name};
     my $lang = $self->{lang};
 
+    return "fetch name: $name, key: $key\n";
     # return $self->{$key} if exists $self->{$key};
 
-    my $client = FC_RPC::get_client($lang);
-    return $client->rpc_get_attr($name, $key);
+    # my $client = FC_RPC::get_client($lang);
+    # return $client->rpc_get_attr($name, $key);
 }
 
 sub STORE {
@@ -84,15 +97,16 @@ sub AUTOLOAD {
     no strict 'vars';
     (my $method = $AUTOLOAD) =~ s{.*::}{};
 
-    my $data = {
-        job_name => $self->{name},
-        job_type => $self->{type},
-        method   => $method,
-        args     => \@args,
-    };
+    print STDERR "Run autoload in tie, method: $method\n";
+    # my $data = {
+    #     job_name => $self->{name},
+    #     job_type => $self->{type},
+    #     method   => $method,
+    #     args     => \@args,
+    # };
 
-    my $client = FC_RPC::get_client($lang);
-    return $client->rpc_call($data);
+    # my $client = FC_RPC::get_client($lang);
+    # return $client->rpc_call($data);
 }
 
 1;

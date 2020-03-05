@@ -23,16 +23,88 @@ sub deserialization {
     return $line;
 }
 
+sub load_json_file {
+    my $json_file = shift;
+
+    open JF, "<$json_file" or die "Open json file $json_file failed!\n";
+    my $json_str = "";
+    $json_str .= $_ while <JF>;
+    close JF;
+    
+    return JSON::decode_json($json_str);
+}
+
+
+package FlowContextConfig;
+
+sub new {
+    my $class = shift;
+    my $config_file = shift;
+
+    my $fc_config_raw = Common::load_json_file($config_file);
+    my $basedir = $fc_config_raw->{flow_basedir};
+
+    my $obj = {
+        basedir     => $basedir,
+        config_file => $config_file,
+        raw_config  => $fc_config_raw,
+    };
+
+    bless $obj, __PACKAGE__;
+
+    return $obj;
+}
+
+sub replace_flow_basedir {
+    my $self = shift;
+    my $raw = shift;
+
+    my $basedir = $self->{basedir};
+
+    $raw =~ s/\$flow_basedir/$basedir/;
+
+    print STDERR "After replace: $raw.\n";
+
+    return $raw;
+}
+
+sub DESTROY {}
+
+sub AUTOLOAD {
+    my $self = shift;
+
+    no strict 'vars';
+    (my $method = $AUTOLOAD) =~ s{.*::}{};
+    if ($method =~ /^get_(.*)/) {
+        print STDERR "Get: key: $1\n";
+        if ($1 eq "rpc_server_sock_path" or $1 eq "rpc_server_bin") {
+            my $raw_value;
+            $raw_value = $self->{raw_config}->{$1} if exists $self->{raw_config}->{$1};
+            return $raw_value;
+        } else {
+            if (exists $self->{raw_config}->{$1}) {
+                return $self->replace_flow_basedir($self->{raw_config}->{$1});
+            } else {
+                return undef;
+            }
+        }
+    } else {
+        print STDERR "Unknown subroutine $method in FlowContextConfig!\n";
+    }
+}
+
 package FlowContext;
 
-our $FC_MSG_REQ = 0;
-our $FC_MSG_RESP = 1;
-our $FC_MSG_RPC = 2;
+# our $FC_MSG_REQ = 0;
+# our $FC_MSG_RESP = 1;
+# our $FC_MSG_RPC = 2;
 
 my $lang_server_sock_path = {
     perl   => "/home/wuge/.mytmp/unix-domain-socket-test-perl.sock",
     python => "/home/wuge/.mytmp/unix-domain-socket-test-python.sock",
 };
+
+my $lang_server_launch_cmd = {};
 
 # my $basedir;
 my $is_init = undef;
@@ -41,26 +113,53 @@ my $fc_msgs_config_json;
 my $rpc_server_mgr;
 
 sub init_context {
-    my $basedir = shift;
+    my $basedir = shift; # define basedir if flow controller engine
+                         # basedir is undef if perl rpc server
     my $fc_config_json = shift;
 
-    $basedir = "../" unless defined $basedir;
-    $fc_config_json = "$basedir/comm/flow_context_config.json" unless defined $fc_config_json;
+    if (exists $ENV{FLOW_CONTEXT_CONFIG}) {
+        # init perl rpc server
+        $fc_config_json = $ENV{FLOW_CONTEXT_CONFIG} unless defined $fc_config_json;
+        $fc_config = FlowContextConfig->new($fc_config_json);
+        $basedir = $fc_config->get_flow_basedir;
+    } else {
+        # init flow controller engine, set env var FLOW_CONTEXT_CONFIG
+        # FLOW_CONTEXT_CONFIG will be passed to rpc servers
+        $basedir = ".." unless defined $basedir;
+        $fc_config_json = "$basedir/comm/flow_context_config.json" unless defined $fc_config_json;
+        $ENV{FLOW_CONTEXT_CONFIG} = $fc_config_json;
+        $fc_config = FlowContextConfig->new($fc_config_json);
+    }
+
+    die "Don't have context config file $fc_config_json.\n" unless -e $fc_config_json;
 
     unshift @INC, "$basedir/fake_jobs/perl_fake_jobs";
     unshift @INC, "$basedir/fc_rpc/perl_rpc";
     unshift @INC, "$basedir/log_service";
 
-    $fc_config = load_json_file($fc_config_json);
-    if (exists $fc_config->{rpc_server_sock_path}) {
-        foreach my $lang (keys %{$fc_config->{rpc_server_sock_path}}) {
-            $lang_server_sock_path->{$lang} = $fc_config->{rpc_server_sock_path}->{$lang}
+    my $rpc_server_sock_path = $fc_config->get_rpc_server_sock_path;
+    if (defined $rpc_server_sock_path) {
+        foreach my $lang (keys %{$rpc_server_sock_path}) {
+            $lang_server_sock_path->{$lang} = $rpc_server_sock_path->{$lang}
         }
     }
 
-    $fc_msgs_config_json = "$basedir/fc_rpc/fc_msg/flow_controller_msg.json";
+    $fc_msgs_config_json = $fc_config->get_flow_message_config;
+    &flow_exit("message config file $fc_msgs_config_json doesn't exist!\n") unless -e $fc_msgs_config_json;
+
+    my $fc_msgs_config = Common::load_json_file($fc_msgs_config_json);
+    my $msg_ids = $fc_msgs_config->{FC_MSG_IDS};
+    foreach my $msg_type (keys %{$msg_ids}) {
+        # print STDERR "set attr: type: $msg_type, value: $msg_ids->{$msg_type}.\n";
+        no strict "refs";
+        ${"FlowContext::" . $msg_type} = $msg_ids->{$msg_type};
+    }
 
     $is_init = 1;
+}
+
+sub get_rpc_server_bin {
+    return $fc_config->get_rpc_server_bin();
 }
 
 sub set_rpc_server_manager {
@@ -79,17 +178,6 @@ sub get_fc_msgs_config_file {
     return $fc_msgs_config_json;
 }
 
-sub load_json_file {
-    my $json_file = shift;
-
-    open JF, "<$json_file" or die "Open json file $json_file failed!\n";
-    my $json_str = "";
-    $json_str .= $_ while <JF>;
-    close JF;
-    
-    return JSON::decode_json($json_str);
-}
-
 sub get_server_sock_path {
     my $server_name = shift;
 
@@ -104,7 +192,10 @@ sub cleanup_flow_context {
 }
 
 sub flow_exit {
-    exit 0;
+    my $self = shift;
+    my $msg = shift;
+    
+    die "$msg";
 }
 
 package RegisterCenter;
@@ -176,7 +267,8 @@ sub new {
     my $cmdlist = shift;
     my $debug = shift; # which rpc server to debug, currently perl or python
 
-    $debug = undef unless exists $cmdlist->{$debug};
+    $cmdlist = &FlowContext::get_rpc_server_bin unless defined $cmdlist;
+    $debug = undef unless defined $debug and exists $cmdlist->{$debug};
 
     print STDERR "Debug rpc server: $debug.\n" if defined $debug;
 
@@ -245,7 +337,7 @@ sub launch_rpc_servers {
     my $cmdlist = $self->{cmdlist};
 
     foreach my $lang (keys %{$cmdlist}) {
-        next if lc($self->{debug}) eq lc($lang);
+        next if defined $self->{debug} and lc($self->{debug}) eq lc($lang);
         $self->clean_sock_file($lang);
         my $cmd = $cmdlist->{$lang};
         $cmd = "perl " . $cmd if lc($lang) eq "perl";

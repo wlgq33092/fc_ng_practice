@@ -38,6 +38,9 @@ class FCLogger(object):
 
     def log_debug(self, msg):
         self.logger.debug(msg)
+        
+    def log_warning(self, msg):
+        self.logger.warning(msg)
 
     def set_debug(self):
         # set logging level to DEBUG
@@ -45,4 +48,4 @@ class FCLogger(object):
 
 log_file = context.get_base_dir() + '/tmplog.log'
 sys.modules["FCLogger"] = FCLogger(20, log_file)
-print "add fc logging module success!\n"
+# print "add fc logging module success!\n"

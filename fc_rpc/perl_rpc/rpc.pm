@@ -82,6 +82,7 @@ sub recv_fc_message {
     return ($tag, $len, $val);
 }
 
+# get an RPC client to the specified server
 sub get_client {
     my $server = shift;
     $server = lc($server);
@@ -114,7 +115,10 @@ sub new {
         Peer => $sock_path,
     );
 
-    FlowContext::cleanup_flow_context unless defined $sock;
+    unless (defined $sock) {
+        FlowContext::cleanup_flow_context;
+        FlowContext::flow_exit;
+    }
 
     $sock->autoflush(1);
 
@@ -151,9 +155,16 @@ sub _rpc {
     my $tag = shift;
     my $call_data = shift;
 
-    my $call_msg = FCMessage->new($tag, $call_data);
-    $self->send_fc_message($call_msg);
-    my ($ret_tag, $ret_len, $ret_val) = $self->recv_response;
+    my ($ret_tag, $ret_len, $ret_val);
+    eval {
+        my $call_msg = FCMessage->new($tag, $call_data);
+        $self->send_fc_message($call_msg);
+        ($ret_tag, $ret_len, $ret_val) = $self->recv_response;
+    };
+    if ($@) {
+        print STDERR "run rpc error, error: $@.\n";
+        FlowContext::cleanup_flow_context;
+    }
 
     return ($ret_tag, $ret_len, $ret_val)
 }
@@ -162,18 +173,26 @@ sub rpc_call {
     my $self = shift;
     my $call_data = shift;
 
-    my ($tag, $len, $val);
-    eval {
-        ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_RPC, $call_data);
-    };
-    if ($@) {
-        print STDERR "rpc_call error, error: $@.\n";
-        FlowContext::cleanup_flow_context
-    }
-
+    my ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_RPC, $call_data);
+   
     $self->close();
 
     return $val->{return_val};
+}
+
+sub rpc_log {
+    my $self = shift;
+    my $logginglevel = shift;
+    my $msg = shift;
+
+    my $call_data = {
+        logginglevel => $logginglevel,
+        message      => $msg
+    };
+
+    my ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_LOG_PRINT, $call_data);;
+
+    $self->close();
 }
 
 sub rpc_get_attr {
@@ -210,6 +229,14 @@ sub rpc_set_attr {
     $self->close();
 }
 
+sub rpc_create_job {
+    my $self = shift;
+    my $data = shift;
+
+    $self->_rpc($FlowContext::FC_MSG_JOB_CREATE, $data);
+    $self->close();
+}
+
 sub close {
     my $self = shift;
     my $conn = $self->{sock};
@@ -224,7 +251,7 @@ sub connect {
 }
 
 sub DESTROY {
-
+    $_[0]->close();
 }
 
 package FC_RPC_SERVER;

@@ -64,12 +64,17 @@ def handle_get_attr_message(req):
     attr_ret_msg = FCMessage(context.FC_MSG_REMOTE_ATTR_RET, attr_ret_msg_val)
     return attr_ret_msg
 
+def handle_log_print_message(req):
+    pass
+
 def handle_fc_message(msg):
     tag = msg.get_tag()
     if tag == context.FC_MSG_RPC:
         return handle_rpc_message(msg.get_value())
     elif tag == context.FC_MSG_GET_REMOTE_ATTR:
         return handle_get_attr_message(msg.get_value())
+    elif tag == context.FC_MSG_LOG_PRINT:
+        return handle_log_print_message(msg.get_value())
     else:
         print "unknown message.\n"
 

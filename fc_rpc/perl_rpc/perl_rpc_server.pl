@@ -9,8 +9,8 @@ use FindBin qw/$Bin/;
 # use threads::shared;
 use lib "$Bin";
 use lib "$Bin/../../comm";
-# print STDERR "bin is $Bin\n";
-# unshift @INC, "$rootdir/comm";
+
+use log_agent;
 require "common.pm";
 
 
@@ -50,23 +50,41 @@ sub handle_rpc_msg {
         return_val => $ret,
     };
 
+    no warnings "once";
     my $resp_msg = FCMessage->new($FlowContext::FC_MSG_RESP, $response);
     return $resp_msg;
+}
+
+sub handle_job_create_msg {
+    my $req = shift;
+    my $name = $req->{name};
+    my $type = $req->{type};
+    my $config = $req->{config};
+    # TODO: need to tie req, get default value for optional field
+    my $job_logging_level = $req->{logginglevel};
+
+    my $logger = LogAgent->new($name, $job_logging_level);
+
+    # build TflexJob here
+    # find job package, require it and build job
 }
 
 sub handle_and_gen_resp {
     my $tag = shift;
     my $val = shift;
 
+    no warnings "once";
     if ($tag == $FlowContext::FC_MSG_RPC) {
         handle_rpc_msg($val);
+    } elsif ($tag == $FlowContext::FC_MSG_JOB_CREATE) {
+        handle_job_create_msg($val);
     } else {
         return undef;
     }
 }
 
 sub main {
-    my @opt_list = ("root=s");
+    my @opt_list = qw/root=s/;
     my %opts;
 
     $SIG{__WARN__} = sub {
@@ -91,7 +109,7 @@ sub main {
     FlowContext::init_context($rootdir);
     require "rpc.pm";
 
-    $jobs = &init_jobs;
+    # $jobs = &init_jobs;
     my $server = &create_server;
 
     while (1) {

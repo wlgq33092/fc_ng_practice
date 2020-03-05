@@ -1,6 +1,17 @@
 {
+    "flow_basedir": "/home/wuge/workspace/perl_workspace/flow_control_ng",
+    "flow_message_config": "$flow_basedir/fc_rpc/fc_msg/flow_controller_msg.json",
+    "python_fake_job_packages_folder": "$flow_basedir/fake_jobs/python_fake_jobs",
+    "log_service_folder": "$flow_basedir/log_service",
+
+    "tmp_sock_dir": "/home/wuge/.mytmp",
     "rpc_server_sock_path": {
         "perl": "/home/wuge/.mytmp/unix-domain-socket-test-perl.sock",
         "python": "/home/wuge/.mytmp/unix-domain-socket-test-python.sock"
+    },
+
+    "rpc_server_bin": {
+        "perl": "$flow_basedir/fc_rpc/perl_rpc/perl_rpc_server.pl",
+        "python": "$flow_basedir/fc_rpc/python_rpc/python_rpc_server.py"
     }
 }

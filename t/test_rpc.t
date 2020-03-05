@@ -9,28 +9,15 @@ use Test::More;
 unshift @INC, "$Bin";
 unshift @INC, "$Bin/../comm";
 require "common.pm";
+require "test_util.pm";
 
 sub exit_test {
-    my $rpc_server_mgr = shift;
-    $rpc_server_mgr->kill_rpc_servers;
-    exit 0;
+    TestUtil::exit_test($_[0]);
 }
 
 sub main {
     my @opt_list = qw(l=s debug=s);
-    my %opts;
-
-    $SIG{__WARN__} = sub {
-        my $wng = shift;
-        my $msg = $wng;
-        $msg =~ s/Unknown option/Unknown command line option/g;
-        chomp $msg;
-        print "$msg, please check command line argument.\n";
-        exit 1;
-    };
-
-    my $ret = GetOptions(\%opts, @opt_list);
-    $SIG{__WARN__} = 'DEFAULT';
+    my %opts = TestUtil::get_test_opt(@opt_list);
 
     FlowContext::init_context("$Bin/../");
 
@@ -58,29 +45,27 @@ sub main {
     my $arg2 = "";
 
     my $ret_test_rpc = $test_flow_job->test_rpc($arg1, $arg2);
-    is("test rpc ret", $ret_test_rpc, "test rpc ret") or done_testing, exit_test($rpc_server_mgr);
+    is("test rpc ret", $ret_test_rpc, "test rpc ret") or exit_test($rpc_server_mgr);
     # is("test rpc arg1 ret", $arg1, "test rpc arg1 ret") or done_testing;
     # is("test rpc arg2 ret", $arg2, "test rpc arg2 ret") or done_testing;
 
     my $ret_test_run = $test_flow_job->test_run($arg1, $arg2);
-    is("test run ret", $ret_test_run, "test run ret") or done_testing, exit_test($rpc_server_mgr);
+    is("test run ret", $ret_test_run, "test run ret") or exit_test($rpc_server_mgr);
     # is("test run arg1 ret", $arg1, "test run arg1 ret") or done_testing;
     # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
 
     my $ret_test_call_python = $test_flow_job->test_call_python($arg1, $arg2, "");
-    is("test call from perl", $ret_test_call_python, "test call python") or done_testing, exit_test($rpc_server_mgr);
+    is("test call from perl", $ret_test_call_python, "test call python") or exit_test($rpc_server_mgr);
     
     $ret_test_rpc = $test_flow_job2->test_python_rpc($arg1, $arg2);
-    is("test python rpc ret", $ret_test_rpc, "test rpc ret") or done_testing, exit_test($rpc_server_mgr);
+    is("test python rpc ret", $ret_test_rpc, "test rpc ret") or exit_test($rpc_server_mgr);
     # is("test rpc arg1 ret", $arg1, "test rpc arg1 ret") or done_testing;
     # is("test rpc arg2 ret", $arg2, "test rpc arg2 ret") or done_testing;
 
     $ret_test_run = $test_flow_job2->test_python_run($arg1, $arg2);
-    is("test python run ret", $ret_test_run, "test run ret") or done_testing, exit_test($rpc_server_mgr);
+    is("test python run ret", $ret_test_run, "test run ret") or exit_test($rpc_server_mgr);
     # is("test run arg1 ret", $arg1, "test run arg1 ret") or done_testing;
     # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
-    
-    &done_testing;
 
     exit_test($rpc_server_mgr);
 }

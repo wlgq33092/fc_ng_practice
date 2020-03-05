@@ -6,8 +6,10 @@ use FindBin qw/$Bin/;
 use Getopt::Long qw(:config no_ignore_case);
 use Test::More;
 
-unshift @INC, "$Bin";
-unshift @INC, "$Bin/../comm";
+use lib "$Bin";
+use lib "$Bin/../comm";
+
+use test_util;
 
 require "common.pm";
 FlowContext::init_context("$Bin/../");
@@ -43,19 +45,7 @@ sub test_tag {
 
 sub main {
     my @opt_list = ("l=s");
-    my %opts;
-
-    $SIG{__WARN__} = sub {
-        my $wng = shift;
-        my $msg = $wng;
-        $msg =~ s/Unknown option/Unknown command line option/g;
-        chomp $msg;
-        print "$msg, please check command line argument.\n";
-        exit 1;
-    };
-
-    my $ret = GetOptions(\%opts, @opt_list);
-    $SIG{__WARN__} = 'DEFAULT';
+    my %opts = TestUtil::get_test_opt(@opt_list);
 
     my $msg_config_file = "$Bin/../fc_rpc/fc_msg/flow_controller_msg.json";
     my $msg_config = FC_MSG_CONFIG->new($msg_config_file)->{config};
