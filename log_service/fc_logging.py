@@ -14,7 +14,7 @@ class FCLogger(object):
         # time.strftime('%Y%m%d%H%M')
         # self.logger.formatTime("%Y-%m-%d %H:%M:%S", time.localtime())
         logging.basicConfig(
-            level = logging.INFO, format = '%(asctime)s - %(levelname)s: %(message)s', 
+            level = logging.INFO, format = '%(asctime)s: %(message)s', 
             datefmt = '%Y-%m-%d %H:%M:%S', filename = logfile, filemode = 'w')
 
     def log_print(self, msg, level):
@@ -45,7 +45,8 @@ class FCLogger(object):
     def set_debug(self):
         # set logging level to DEBUG
         self.logger.setLevel(10)
+        
+    def set_logging_level(self, level):
+        self.logger.setLevel(level)
 
-log_file = context.get_base_dir() + '/tmplog.log'
-sys.modules["FCLogger"] = FCLogger(20, log_file)
-# print "add fc logging module success!\n"
+sys.modules["FCLogger"] = FCLogger(10, context.flow_log_file)

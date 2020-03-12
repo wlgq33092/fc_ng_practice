@@ -4,6 +4,7 @@ use warnings;
 require "rpc.pm";
 require "common.pm";
 
+
 package LogAgent;
 
 my $DEV = 10;
@@ -48,16 +49,22 @@ sub log_print {
     
     # if input level bigger than job logginglevel,
     # return directly
-    return if $level > $self->{level};
+    # return unless $level > $self->{level};
 
     my $name = $self->{name};
     my $logging_prefix = $self->get_logging_prefix($level);
 
     $msg = "[$logging_prefix][$name]: $msg";
+    # print STDERR "log print: level: $level, msg: $msg\n";
 
-    my $client = FC_RPC::get_client("python");
-    $client->rpc_log($INFO, $msg);
+    my $client = FC_RPC::get_client("logger");
+    if (defined $client) {
+        $client->rpc_log($level, $msg);
+    } else {
+        print STDERR "$msg";
+    }
 }
+    
 
 sub get_logging_prefix {
     my $self = shift;

@@ -30,6 +30,23 @@ class TestPyServerContext(unittest.TestCase):
             self.assertEqual(6, context.FC_MSG_SET_REMOTE_ATTR, "check FC_MSG_SET_REMOTE_ATTR, actual: {0}.".format(context.FC_MSG_SET_REMOTE_ATTR))
             self.assertEqual(7, context.FC_MSG_LOG_PRINT, "check FC_MSG_LOG_PRINT, actual: {0}.".format(context.FC_MSG_LOG_PRINT))
             self.assertEqual(8, context.FC_MSG_JOB_CREATE, "check FC_MSG_JOB_CREATE, actual: {0}.".format(context.FC_MSG_JOB_CREATE))
+            
+            # test get message name
+            self.assertEqual("FC_MSG_REQ", context.get_message_name(0), "check message name, actual: {0}.".format(context.get_message_name(0)))
+            self.assertEqual("FC_MSG_RESP", context.get_message_name(1), "check message name, actual: {0}.".format(context.get_message_name(1)))
+            self.assertEqual("FC_MSG_RPC", context.get_message_name(2), "check message name, actual: {0}.".format(context.get_message_name(2)))
+            self.assertEqual("FC_MSG_CONFIG", context.get_message_name(3), "check message name, actual: {0}.".format(context.get_message_name(3)))
+            self.assertEqual("FC_MSG_GET_REMOTE_ATTR", context.get_message_name(4), "check message name, actual: {0}.".format(context.get_message_name(4)))
+            self.assertEqual("FC_MSG_REMOTE_ATTR_RET", context.get_message_name(5), "check message name, actual: {0}.".format(context.get_message_name(5)))
+            self.assertEqual("FC_MSG_SET_REMOTE_ATTR", context.get_message_name(6), "check message name, actual: {0}.".format(context.get_message_name(6)))
+            self.assertEqual("FC_MSG_LOG_PRINT", context.get_message_name(7), "check message name, actual: {0}.".format(context.get_message_name(7)))
+            self.assertEqual("FC_MSG_JOB_CREATE", context.get_message_name(8), "check message name, actual: {0}.".format(context.get_message_name(8)))
+            
+            # test interfaces
+            self.assertEqual("/home/wuge/.mytmp/unix-domain-socket-test-python.sock", context.get_server_sock_path("python"), "check python rpc server sock path, actual {0}".format(context.get_server_sock_path("python")))
+            self.assertEqual("/home/wuge/.mytmp/unix-domain-socket-test-python.sock", context.get_server_sock_path("PYThon"), "check python rpc server sock path, actual {0}".format(context.get_server_sock_path("PYThon")))
+            self.assertEqual("/home/wuge/.mytmp/unix-domain-socket-test-python.sock", context.get_server_sock_path("PYTHON"), "check python rpc server sock path, actual {0}".format(context.get_server_sock_path("PYTHON")))
+            self.assertEqual("/home/wuge/.mytmp/unix-domain-socket-test-python.sock", context.get_server_sock_path("pythoN"), "check python rpc server sock path, actual {0}".format(context.get_server_sock_path("PythoN")))            
         except Exception as e:
             print "test case not pass: {0}.\n".format(e)
             raise e

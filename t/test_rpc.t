@@ -20,6 +20,7 @@ sub main {
     my %opts = TestUtil::get_test_opt(@opt_list);
 
     FlowContext::init_context("$Bin/../");
+    FlowContext::set_flow_logger(LogAgent->new("FLOW - Engine", 10));
 
     require "rpc_obj.pm";
 
@@ -32,11 +33,21 @@ sub main {
             $debug = $opts{debug};
         }
     }
-    my $rpc_server_cmdlist = {
-        perl   => "$Bin/../fc_rpc/perl_rpc/perl_rpc_server.pl",
-        python => "$Bin/../fc_rpc/python_rpc/python_rpc_server.py",
-    };
-    my $rpc_server_mgr = FlowRPCServerManager->new($rpc_server_cmdlist, $debug);
+
+    # test rpc server config
+    # my $perl_server_config = {
+
+    # };
+
+    # my $python_server_config = {
+
+    # };
+    # my $rpc_server_config = {
+    #     perl   => $perl_server_config,
+    #     python => $python_server_config,
+    # };
+    # my $rpc_server_mgr = FlowRPCServerManager->new($rpc_server_cmdlist, $debug);
+    my $rpc_server_mgr = FlowRPCServerManager->new(undef, $debug);
     $rpc_server_mgr->launch_rpc_servers;
 
     my $test_flow_job = FlowJob->new("job1", "joba");
@@ -57,6 +68,8 @@ sub main {
     my $ret_test_call_python = $test_flow_job->test_call_python($arg1, $arg2, "");
     is("test call from perl", $ret_test_call_python, "test call python") or exit_test($rpc_server_mgr);
     
+
+    # test python job
     $ret_test_rpc = $test_flow_job2->test_python_rpc($arg1, $arg2);
     is("test python rpc ret", $ret_test_rpc, "test rpc ret") or exit_test($rpc_server_mgr);
     # is("test rpc arg1 ret", $arg1, "test rpc arg1 ret") or done_testing;
@@ -66,6 +79,8 @@ sub main {
     is("test python run ret", $ret_test_run, "test run ret") or exit_test($rpc_server_mgr);
     # is("test run arg1 ret", $arg1, "test run arg1 ret") or done_testing;
     # is("test run arg2 ret", $arg2, "test run arg2 ret") or done_testing;
+
+    $ret_test_run = $test_flow_job->test_log();
 
     exit_test($rpc_server_mgr);
 }

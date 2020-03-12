@@ -2,19 +2,16 @@ use strict;
 use warnings;
 use Socket;
 use IO::Socket::UNIX;
-# use XML::LibXML;
 use Getopt::Long qw(:config no_ignore_case);
 use FindBin qw/$Bin/;
-# use threads;
-# use threads::shared;
 use lib "$Bin";
 use lib "$Bin/../../comm";
 
 use log_agent;
 require "common.pm";
 
-
 our $jobs = {};
+our $flow_logger;
 
 sub init_jobs {
     require "joba.pm";
@@ -34,17 +31,8 @@ sub create_server {
     return $server;
 }
 
-sub handle_rpc_msg {
-    my $req = shift;
-
-    my $jobname = $req->{job_name};
-    my $jobtype = $req->{job_type};
-    my $method = $req->{method};
-    my @args = @{$req->{args}};
-
-    print STDERR "jobname: $jobname, type: $jobtype, method: $method.\n";
-    my $job = $jobs->{$jobname};
-    my $ret = $job->$method(@args);
+sub simple_resp {
+    my $ret = shift;
 
     my $response = {
         return_val => $ret,
@@ -53,6 +41,21 @@ sub handle_rpc_msg {
     no warnings "once";
     my $resp_msg = FCMessage->new($FlowContext::FC_MSG_RESP, $response);
     return $resp_msg;
+}
+
+sub handle_rpc_msg {
+    my $req = shift;
+
+    my $jobname = $req->{job_name};
+    my $jobtype = $req->{job_type};
+    my $method = $req->{method};
+    my @args = @{$req->{args}};
+
+    $flow_logger->log_debug("jobname: $jobname, type: $jobtype, method: $method.\n");
+    my $job = $jobs->{$jobname};
+    my $ret = $job->$method(@args);
+
+    return simple_resp($ret);
 }
 
 sub handle_job_create_msg {
@@ -67,6 +70,11 @@ sub handle_job_create_msg {
 
     # build TflexJob here
     # find job package, require it and build job
+    require "joba.pm";
+    my $newjob = joba->new($name, "joba", $config, $logger);
+    $jobs->{$name} = $newjob;
+
+    return simple_resp("success");
 }
 
 sub handle_and_gen_resp {
@@ -75,9 +83,9 @@ sub handle_and_gen_resp {
 
     no warnings "once";
     if ($tag == $FlowContext::FC_MSG_RPC) {
-        handle_rpc_msg($val);
+        return handle_rpc_msg($val);
     } elsif ($tag == $FlowContext::FC_MSG_JOB_CREATE) {
-        handle_job_create_msg($val);
+        return handle_job_create_msg($val);
     } else {
         return undef;
     }
@@ -107,13 +115,17 @@ sub main {
     }
 
     FlowContext::init_context($rootdir);
+
     require "rpc.pm";
 
     # $jobs = &init_jobs;
+    # my $flow_log_file = $FlowContext::get_flow_log_file();
+    $flow_logger = LogAgent->new("FLOW - Perl Server", 10);
+    FlowContext::set_flow_logger($flow_logger);
     my $server = &create_server;
 
     while (1) {
-        print STDERR "perl language server is waiting for connection...\n";
+        $flow_logger->log_info("perl language server is waiting for connection...\n");
         $server->accept;
         while (1) {
             my ($tag, $len, $val) = $server->get_request;
@@ -121,17 +133,6 @@ sub main {
             my $resp = handle_and_gen_resp($tag, $val);
             $server->send_response($resp);
         }
-        # my $pid = fork();
-        # if (0 == $pid) {
-        #     1;
-        # } elsif ($pid > 0) {
-        #     while (1) {
-        #         my ($tag, $len, $val) = $server->get_request;
-        #         last unless defined $tag;
-        #         my $resp = handle_and_gen_resp($tag, $val);
-        #         $server->send_response($resp);
-        #     }
-        # } 
     }
 }
 

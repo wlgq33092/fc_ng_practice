@@ -27,6 +27,9 @@ sub main {
     is(FlowContext::get_server_sock_path("python"), "/home/wuge/.mytmp/unix-domain-socket-test-python.sock", "test python server sock path") or &exit_test;
     is(FlowContext::get_server_sock_path("go"), undef, "test go server path") or &exit_test;
     
+    my $rpc_server_config = FlowContext::get_rpc_server_config;
+    is($rpc_server_config->{perl}->{lang}, "perl", "test rpc server config perl lang") or &exit_test;
+    is($rpc_server_config->{python}->{lang}, "python", "test rpc server config python lang") or &exit_test;
     # test msg ids init
     {
         # To avoid warnings

@@ -12,6 +12,8 @@ use fc_msg;
 
 require "common.pm";
 
+our $flow_logger;
+
 package FC_RPC;
 
 sub rpc_print {
@@ -37,7 +39,7 @@ sub rpc_call_python {
         args     => \@args,
     };
 
-    print STDERR "rpc call python: $jobname, $jobtype, $method.\n";
+    # $flow_logger->log_debug("rpc call python: $jobname, $jobtype, $method.\n");
 
     my $client = get_client("python");
 
@@ -49,6 +51,7 @@ sub send_fc_message {
     my $msg = shift;
     my $peer = shift;
 
+    $msg->print();
     my $send_data = $msg->serialization();
     # print &::Dumper($sock);
     $sock->send($send_data, 0);
@@ -72,12 +75,15 @@ sub recv_fc_message {
     
     $tag = unpack("N", $tag);
     $len = unpack("N", $len);
-    print "msg tag: $tag, msg len: $len\n";
+    # $flow_logger->log_debug("msg tag: $tag, msg len: $len\n");
     $conn->recv($val, $len, 0);
     return undef, undef, undef unless $val;
-    print "msg val: $val\n";
+    # $flow_logger->log_debug("msg val: $val\n");
     $val = unpack("A*", $val);
     $val = JSON::decode_json($val);
+
+    $flow_logger = &FlowContext::get_flow_logger;
+    $flow_logger->log_info("msg tag: $tag, msg len: $len, val: $val\n");
 
     return ($tag, $len, $val);
 }
@@ -88,14 +94,15 @@ sub get_client {
     $server = lc($server);
 
     my $sock_path = FlowContext::get_server_sock_path($server);
-    return undef unless defined $sock_path;
+    print STDERR "perl get client: $server $sock_path\n";
+    return undef unless defined $sock_path and -e $sock_path;
 
     my $client;
     eval {
         $client = FC_RPC_CLIENT->new($sock_path);
     };
     if ($@) {
-        print STDERR "get client error. error is: $@\n";
+        print STDERR "$server client is invalid, error: $@\n";
         FlowContext::cleanup_flow_context;
         FlowContext::flow_exit();
     }
@@ -154,12 +161,15 @@ sub _rpc {
     my $self = shift;
     my $tag = shift;
     my $call_data = shift;
+    my $need_reply = shift;
+
+    $need_reply = 1 unless defined $need_reply;
 
     my ($ret_tag, $ret_len, $ret_val);
     eval {
         my $call_msg = FCMessage->new($tag, $call_data);
         $self->send_fc_message($call_msg);
-        ($ret_tag, $ret_len, $ret_val) = $self->recv_response;
+        ($ret_tag, $ret_len, $ret_val) = $self->recv_response if $need_reply;
     };
     if ($@) {
         print STDERR "run rpc error, error: $@.\n";
@@ -190,7 +200,7 @@ sub rpc_log {
         message      => $msg
     };
 
-    my ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_LOG_PRINT, $call_data);;
+    my ($tag, $len, $val) = $self->_rpc($FlowContext::FC_MSG_LOG_PRINT, $call_data, 0);
 
     $self->close();
 }

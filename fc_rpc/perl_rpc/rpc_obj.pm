@@ -11,8 +11,11 @@ sub new {
     my $name = shift;
     my $type = shift;
     my $config = shift;
+    my $logginglevel = shift;
 
-    my $instance = FlowRPCJob->new($name, $type, $config);
+    $logginglevel = 20 unless defined $logginglevel;
+
+    my $instance = FlowRPCJob->new($name, $type, $config, $logginglevel);
 
     my $obj = {
         name     => $name,
@@ -86,11 +89,13 @@ sub new {
     my $name = shift;
     my $type = shift;
     my $config = shift;
+    my $logginglevel = shift;
 
     my $rpc_job = {
-        name   => $name,
-        type   => $type,
-        config => $config,
+        name         => $name,
+        type         => $type,
+        config       => $config,
+        logginglevel => $logginglevel,
     };
 
     my $lang = RegisterCenter::find_job_package($type);
@@ -121,6 +126,7 @@ sub AUTOLOAD {
     # $data->{job_type} = "pyjoba" if lc($lang) eq "python";
     # $data->{job_name} = "job3" if lc($lang) eq "python";
 
+    print STDERR "flow job: lang is $lang, method $method\n";
     my $client = FC_RPC::get_client($lang);
     return $client->rpc_call($data);
 }

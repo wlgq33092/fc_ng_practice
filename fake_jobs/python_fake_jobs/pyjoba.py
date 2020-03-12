@@ -2,9 +2,11 @@ import os
 import sys
 
 class pyjoba(object):
-    def __init__(self, name, type):
+    def __init__(self, name, type, config, logger):
         self._name = name
         self._type = type
+        self._config = config
+        self._logger = logger
 
     def test_rpc(self, arg1, arg2):
         return "test python rpc ret"

@@ -6,6 +6,12 @@ require "rpc.pm";
 require "common.pm";
 require "log_agent.pm";
 
+package RPCServerAPI;
+
+sub get_job_instance_by_name {
+    
+}
+
 package JobAgent;
 
 sub new {

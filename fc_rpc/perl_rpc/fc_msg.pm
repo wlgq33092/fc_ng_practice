@@ -12,12 +12,6 @@ sub new {
     my $class = shift;
     my $msg_config_file = shift;
 
-    # open MSG_CONFIG, "<$msg_config_file" or die "Open msg config file failed!\n";
-    # my $config = "";
-    # $config .= $_ while <MSG_CONFIG>;
-    # close MSG_CONFIG;
-    
-    # my $msg_config = JSON::decode_json($config);
     $msg_config_file = FlowContext::get_fc_msgs_config_file() unless defined $msg_config_file;
     my $msg_config = FlowContext::load_json_file($msg_config_file);
 
@@ -83,7 +77,7 @@ sub new {
     };
 
     $msg->{value} = JSON::encode_json($value);
-    print STDERR "stwu debug: msg:\n" . "$msg->{value}\n";
+    # $flow_logger->log_info("stwu debug: msg:\n" . "$msg->{value}\n");
 
     bless $msg, __PACKAGE__;
 
@@ -122,12 +116,21 @@ sub add_item {
     $self->{value_hash}->{$key} = $value;
 }
 
+sub print {
+    my $self = shift;
+    
+    # print STDERR "perl msg: $self->{tag}\n";
+    # foreach my $key (keys %{$self->{value_hash}}) {
+    #     print STDERR "perl msg value: $key $self->{value_hash}->{$key}\n";
+    # }
+}
+
 sub serialization {
     my $self = shift;
     $self->{value} = JSON::encode_json($self->{value_hash});
     $self->{msg_len} = length($self->{value});
 
-    print STDERR "msg serialization: tag: $self->{tag}, len: $self->{msg_len}, value: $self->{value}.\n";
+    # $flow_logger->log_debug("msg serialization: tag: $self->{tag}, len: $self->{msg_len}, value: $self->{value}.\n");
     my $packed = pack("NNA*", $self->{tag}, $self->{msg_len}, $self->{value});
     
     return $packed;

@@ -5,12 +5,15 @@ import time
 import struct
 import json
 import importlib
+import argparse
 
 import pyserver_context
 import context
-from py_msg import FCMessage
 from py_rpc import PyLangServer, PyLangClient
-import log_agent as logger
+from log_agent import LogAgent
+import PyRPCServerLogger as rpc_logger
+import FCLogger as logger
+from py_msg import FCMessage
 
 # import_path = os.path.abspath(__file__)
 # fake_jobs_path = import_path + "/../../fake_jobs/python_fake_jobs"
@@ -22,40 +25,41 @@ jobs = {}
 def call_job_method(job, method, *args):
     if method not in job.__dict__:
         func = getattr(job, method)
-        print "call job method:\n"
-        print args
-        print "\n"
+        rpc_logger.log_debug("call job method:\n")
+        rpc_logger.log_debug(args)
+        rpc_logger.log_debug("\n")
         ret = func(*args)
-        print "return val is " + ret + "\n"
+        rpc_logger.log_debug("return val is " + ret + "\n")
         return ret
     else:
-        print "no method!"
+        rpc_logger.log_error("no method!")
         
 def get_job_attr(job, attr):
     pass
 
-def handle_rpc_message(req):
-    global jobs
-    jobname = req["job_name"]
-    jobtype = req["job_type"]
-    method = req["method"]
-    args = req["args"]
-
-    print req
-    print "handle rpc msg: name {0}, type {1}, method {2}".format(jobname, jobtype, method)
-    job = jobs[jobname]
-    print job.__dict__
-    ret = call_job_method(job, method, *args)
-    ret_dic = {"return_val":ret}
+def simple_resp(value):
+    ret_dic = {"return_val": str(value)}
     ret_msg = FCMessage(context.FC_MSG_RESP, ret_dic)
-
     return ret_msg
+
+def handle_rpc_message(payload):
+    global jobs
+    jobname = payload["job_name"]
+    jobtype = payload["job_type"]
+    method = payload["method"]
+    args = payload["args"]
+
+    job = jobs[jobname]
+    rpc_logger.log_debug(job.__dict__);
+    ret = call_job_method(job, method, *args)
+    
+    return simple_resp(ret)
     # getattr(job, method)
 
-def handle_get_attr_message(req):
+def handle_get_attr_message(payload):
     global jobs
-    job_name = req["job_name"]
-    attr = req["attr"]
+    job_name = payload["job_name"]
+    attr = payload["attr"]
     msg = "get job {0} attr {1}".format(job_name, attr)
     logger.log_debug(msg)
     job_instance = jobs[job_name]
@@ -64,38 +68,57 @@ def handle_get_attr_message(req):
     attr_ret_msg = FCMessage(context.FC_MSG_REMOTE_ATTR_RET, attr_ret_msg_val)
     return attr_ret_msg
 
-def handle_log_print_message(req):
-    pass
+def handle_log_print_message(payload):
+    # when handle log print message, use log service directly
+    logginglevel = int(payload["logginglevel"])
+    message = payload["message"]
+    logger.log_print(message, logginglevel)
+    
+    return None
+    # return simple_resp("success")
+    
+
+def handle_job_create_message(payload):
+    name = payload["name"]
+    type = payload["type"]
+    config = payload["config"]
+    logginglevel = payload["logginglevel"]
+    
+    job_logger = LogAgent(name, logginglevel)
+    jobs[name] = pyjoba(name, "pyjoba", config, job_logger)
+    
+    return simple_resp("success")
+
+def handle_rpc_server_config(payload):
+    logginglevel = payload["logginglevel"]
+    logger.set_logging_level(logginglevel)
+    
+    return simple_resp("success")
 
 def handle_fc_message(msg):
     tag = msg.get_tag()
+    msg_name = context.get_message_name(int(tag))
+    rpc_logger.log_info("handle message {0}, name {1}".format(tag, msg_name))
     if tag == context.FC_MSG_RPC:
-        return handle_rpc_message(msg.get_value())
+        return handle_rpc_message(msg.get_payload())
     elif tag == context.FC_MSG_GET_REMOTE_ATTR:
-        return handle_get_attr_message(msg.get_value())
+        return handle_get_attr_message(msg.get_payload())
     elif tag == context.FC_MSG_LOG_PRINT:
-        return handle_log_print_message(msg.get_value())
+        return handle_log_print_message(msg.get_payload())
+    elif tag == context.FC_MSG_JOB_CREATE:
+        return handle_job_create_message(msg.get_payload())
+    elif tag == context.FC_MSG_CONFIG:
+        return handle_rpc_server_config(msg.get_payload())
     else:
-        print "unknown message.\n"
-
-def init_jobs():
-    jobs["job3"] = pyjoba("job3", "pyjoba")
-    jobs["job4"] = pyjoba("job4", "pyjoba")
+        rpc_logger.log_error("unknown message.\n")
 
 if __name__ == "__main__":
-    # import_path = os.path.dirname(os.path.abspath(__file__))
-    # print "import path: " + import_path + "\n"
-    # sys.path.append(import_path)
-    # sys.path.append(context.job_packages_folder)
-    # sys.path.append(context.log_service_folder)
-    logger.log_debug(sys.path)
-    logger.log_error(sys.path)
-    importlib.import_module("pyjoba")
-    importlib.import_module("fc_logging")
-
-    init_jobs()
-
-    server = PyLangServer(context.get_sock_path('python'), 5)
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument('--rpc_server_type', dest = 'rpc_server_type', default = 'python', help = 'specify rpc server type, e.g python or logger')
+    args = arg_parser.parse_args()
+    
+    context.set_rpc_server_type(args.rpc_server_type)
+    server = PyLangServer(context.get_server_sock_path(args.rpc_server_type), 5)
     while True:
         server.accept()
         while True:
@@ -104,6 +127,8 @@ if __name__ == "__main__":
                 break
 
             ret_msg = handle_fc_message(msg)
-            print ret_msg
-            server.send_resp(ret_msg)
+            if ret_msg is not None:
+                server.send_resp(ret_msg)
+            else:
+                print "No need to response!\n"
 

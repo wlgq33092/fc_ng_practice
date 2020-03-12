@@ -2,6 +2,11 @@ use strict;
 use warnings;
 use JSON;
 use POSIX;
+use FindBin qw/$Bin/;
+
+use lib "$Bin";
+use lib "$Bin/../fc_rpc/perl_rpc";
+require "log_agent.pm";
 
 package Common;
 
@@ -63,7 +68,7 @@ sub replace_flow_basedir {
 
     $raw =~ s/\$flow_basedir/$basedir/;
 
-    print STDERR "After replace: $raw.\n";
+    # print STDERR "After replace: $raw.\n";
 
     return $raw;
 }
@@ -77,10 +82,17 @@ sub AUTOLOAD {
     (my $method = $AUTOLOAD) =~ s{.*::}{};
     if ($method =~ /^get_(.*)/) {
         print STDERR "Get: key: $1\n";
-        if ($1 eq "rpc_server_sock_path" or $1 eq "rpc_server_bin") {
-            my $raw_value;
-            $raw_value = $self->{raw_config}->{$1} if exists $self->{raw_config}->{$1};
-            return $raw_value;
+        if ($1 eq "rpc_server_config") {
+            my $rpc_server_config;
+            $rpc_server_config = $self->{raw_config}->{$1} if exists $self->{raw_config}->{$1};
+            foreach my $server (keys %{$rpc_server_config}) {
+                foreach my $key (keys %{$rpc_server_config->{$server}}) {
+                    my $raw_value = $rpc_server_config->{$server}->{$key};
+                    my $new_value = $self->replace_flow_basedir($raw_value);
+                    $rpc_server_config->{$server}->{$key} = $new_value;
+                }
+            }
+            return $rpc_server_config;
         } else {
             if (exists $self->{raw_config}->{$1}) {
                 return $self->replace_flow_basedir($self->{raw_config}->{$1});
@@ -95,13 +107,10 @@ sub AUTOLOAD {
 
 package FlowContext;
 
-# our $FC_MSG_REQ = 0;
-# our $FC_MSG_RESP = 1;
-# our $FC_MSG_RPC = 2;
-
 my $lang_server_sock_path = {
     perl   => "/home/wuge/.mytmp/unix-domain-socket-test-perl.sock",
     python => "/home/wuge/.mytmp/unix-domain-socket-test-python.sock",
+    logger => "/home/wuge/.mytmp/unix-domain-socket-test-logger.sock",
 };
 
 my $lang_server_launch_cmd = {};
@@ -111,6 +120,7 @@ my $is_init = undef;
 my $fc_config;
 my $fc_msgs_config_json;
 my $rpc_server_mgr;
+my $flow_logger;
 
 sub init_context {
     my $basedir = shift; # define basedir if flow controller engine
@@ -137,10 +147,10 @@ sub init_context {
     unshift @INC, "$basedir/fc_rpc/perl_rpc";
     unshift @INC, "$basedir/log_service";
 
-    my $rpc_server_sock_path = $fc_config->get_rpc_server_sock_path;
-    if (defined $rpc_server_sock_path) {
-        foreach my $lang (keys %{$rpc_server_sock_path}) {
-            $lang_server_sock_path->{$lang} = $rpc_server_sock_path->{$lang}
+    my $rpc_server_config = $fc_config->get_rpc_server_config;
+    if (defined $rpc_server_config) {
+        foreach my $server (keys %{$rpc_server_config}) {
+            $lang_server_sock_path->{$server} = $rpc_server_config->{$server}->{sock_path};
         }
     }
 
@@ -155,11 +165,17 @@ sub init_context {
         ${"FlowContext::" . $msg_type} = $msg_ids->{$msg_type};
     }
 
+    # $flow_logger = LogAgent->new("FLOW - Engine", 10);
+
     $is_init = 1;
 }
 
-sub get_rpc_server_bin {
-    return $fc_config->get_rpc_server_bin();
+sub get_rpc_server_config {
+    return $fc_config->get_rpc_server_config();
+}
+
+sub get_logger_service_info {
+    return $fc_config->get_logger_service();
 }
 
 sub set_rpc_server_manager {
@@ -185,6 +201,18 @@ sub get_server_sock_path {
     return undef;
 }
 
+sub get_flow_log_file {
+    return $fc_config->get_flow_log_file;
+}
+
+sub set_flow_logger {
+    $flow_logger = shift;
+}
+
+sub get_flow_logger {
+    return $flow_logger;
+}
+
 sub cleanup_flow_context {
     if (defined $rpc_server_mgr) {
         $rpc_server_mgr->kill_rpc_servers;
@@ -195,7 +223,7 @@ sub flow_exit {
     my $self = shift;
     my $msg = shift;
     
-    die "$msg";
+    die "$msg" if defined $msg;
 }
 
 package RegisterCenter;
@@ -260,24 +288,24 @@ sub find_module {
 
 package FlowRPCServerManager;
 
-# cmdlist is a hash ref
-# { perl => $cmd1, python => $cmd2 }
+# rpc_server_config is a hash ref
+# { perl => $cmd1, python => $cmd2, logger => $cmd3 }
 sub new {
     my $class = shift;
-    my $cmdlist = shift;
+    my $rpc_server_config = shift;
     my $debug = shift; # which rpc server to debug, currently perl or python
 
-    $cmdlist = &FlowContext::get_rpc_server_bin unless defined $cmdlist;
-    $debug = undef unless defined $debug and exists $cmdlist->{$debug};
+    $rpc_server_config = &FlowContext::get_rpc_server_config unless defined $rpc_server_config;
+    $debug = undef unless defined $debug and exists $rpc_server_config->{$debug};
 
     print STDERR "Debug rpc server: $debug.\n" if defined $debug;
 
     my $mgr = {
-        cmdlist     => $cmdlist,
-        debug       => $debug,
-        rpc_servers => {}, # lang => pid
-        pids        => [],
-        debug_pid   => undef,
+        rpc_server_config => $rpc_server_config,
+        debug             => $debug,
+        rpc_servers       => {}, # lang => pid
+        pids              => [],
+        debug_pid         => undef,
     };
 
     bless $mgr, __PACKAGE__;
@@ -305,7 +333,7 @@ sub waiting_rpc_server_ready {
     } while (1);
 }
 
-sub launch_rpc_server {
+sub launch_rpc_process {
     my $self = shift;
     my $cmd = shift;
     my $start_debug = shift;
@@ -331,25 +359,54 @@ sub launch_rpc_server {
     }
 }
 
+sub get_rpc_server_cmd {
+    my $self = shift;
+    my $server = shift;
+
+    # print STDERR "get rpc server cmd: $server\n";
+    # print STDERR "get rpc server: $_" foreach (keys %{$self->{rpc_server_config}->{$server}});
+    my $bin = $self->{rpc_server_config}->{$server}->{bin_path};
+    my $lang = $self->{rpc_server_config}->{$server}->{lang};
+    my $cmd;
+    if ($lang eq "perl") {
+        $cmd = "perl " . $bin;
+    } elsif ($lang eq "python") {
+        $cmd = "python " . $bin;
+    }
+
+    return $cmd;
+}
+
+sub launch_rpc_server {
+    my $self = shift;
+    my $server = shift;
+    
+    $self->clean_sock_file($server);
+    my $cmd = $self->get_rpc_server_cmd($server);
+    my $pid = $self->launch_rpc_process($cmd);
+    unless ($self->waiting_rpc_server_ready($server, $pid)) {
+        $self->kill_rpc_servers;
+        die "Start rpc server $server error.\n";
+    }
+    $self->{rpc_servers}->{$server} = $pid; 
+}
+
 sub launch_rpc_servers {
     my $self = shift;
     my $start_debug = shift;
-    my $cmdlist = $self->{cmdlist};
+    my $rpc_server_config = $self->{rpc_server_config};
 
-    foreach my $lang (keys %{$cmdlist}) {
-        next if defined $self->{debug} and lc($self->{debug}) eq lc($lang);
-        $self->clean_sock_file($lang);
-        my $cmd = $cmdlist->{$lang};
-        $cmd = "perl " . $cmd if lc($lang) eq "perl";
-        $cmd = "python " . $cmd if lc($lang) eq "python";
-        my $pid = $self->launch_rpc_server($cmd);
-        unless ($self->waiting_rpc_server_ready($lang, $pid)) {
-            $self->kill_rpc_servers;
-            die "Start rpc server $lang error.\n";
-        }
-        $self->{rpc_servers}->{$lang} = $pid; 
+    # launch logger service first
+    $self->launch_rpc_server("logger");
+
+    # Then launch normal rpc servers
+    foreach my $server (keys %{$rpc_server_config}) {
+        next if lc($server) eq "logger";   # logger service has been launched before
+        next if defined $self->{debug} and lc($self->{debug}) eq lc($server);
+        $self->launch_rpc_server($server);
     }
 
+    # finally launch debug rpc server
     if ($self->{debug}) {
         my $pid = $self->debug_rpc_server;
         $self->{rpc_servers}->{$self->{debug}} = $pid;
@@ -366,7 +423,7 @@ sub clean_sock_file {
 sub debug_rpc_server {
     my $self = shift;
     my $debug = $self->{debug};
-    my $cmd = $self->{cmdlist}->{$debug};
+    my $cmd = $self->{rpc_server_config}->{$debug}->{bin_path};
 
     if (lc($debug) eq "perl") {
         $cmd = "perl -d " . $cmd;
@@ -379,7 +436,7 @@ sub debug_rpc_server {
 
     $self->clean_sock_file($debug);
 
-    my $pid = $self->{debug_pid} = $self->launch_rpc_server($cmd, 1);
+    my $pid = $self->{debug_pid} = $self->launch_rpc_process($cmd, 1);
     unless ($self->waiting_rpc_server_ready($debug, $pid)) {
         $self->kill_rpc_servers;
         die "Start rpc server $debug error.\n";
@@ -402,7 +459,7 @@ sub monitor_rpc_servers {
     my $self = shift;
 
     # TODO
-    # block waiting all rpc servers
+    # blocking/non-blocking? waiting all rpc servers
 }
 
 # return how many servers didn't exit

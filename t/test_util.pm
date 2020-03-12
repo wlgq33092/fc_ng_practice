@@ -21,7 +21,7 @@ sub exit_test {
 }
 
 sub get_test_opt {
-    my @opt_list = shift;
+    my @opt_list = @_;
     my %opts;
 
     $SIG{__WARN__} = sub {

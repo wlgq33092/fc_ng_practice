@@ -56,6 +56,10 @@
         "logginglevel": {
             "type": "int",
             "optional": "yes"
+        },
+        "job_path": {
+            "type": "string",
+            "optional": "no"
         }
     },
 
